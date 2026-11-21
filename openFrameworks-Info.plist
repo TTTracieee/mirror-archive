@@ -23,6 +23,6 @@
 	<key>CFBundleVersion</key>
 	<string>${CURRENT_PROJECT_VERSION}</string>
 	<key>NSHighResolutionCapable</key>
-	<string>${HIGH_RESOLUTION_CAPABLE}</string>
+	<true/>
 </dict>
 </plist>

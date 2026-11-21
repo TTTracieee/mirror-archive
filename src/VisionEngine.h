@@ -54,6 +54,8 @@ public:
     static cv::Mat edges(const cv::Mat& observed, bool denoise = true) {
         cv::Mat input = denoise ? restore(observed) : observed.clone(), edge;
         cv::Canny(gray(input), edge, 45, 100);
+        // Preserve one-pixel contours when the 900px observation is shown at 450px.
+        cv::dilate(edge, edge, cv::getStructuringElement(cv::MORPH_RECT, {2, 2}));
         cv::Mat view(input.size(), CV_8UC3, cv::Scalar(39, 49, 39));
         view.setTo(cv::Scalar(187, 219, 211), edge);
         return view;
@@ -143,8 +145,8 @@ public:
                 const auto velocity = flow.at<cv::Point2f>(y, x);
                 if (cv::norm(velocity) < .55 || (leftOnly && velocity.x > -.6)) continue;
                 const cv::Scalar color = velocity.x < 0 ? cv::Scalar(123, 218, 245) : cv::Scalar(191, 190, 114);
-                cv::arrowedLine(view, {x, y}, cv::Point(cvRound(x + velocity.x * 4), cvRound(y + velocity.y * 4)),
-                                color, 1, cv::LINE_AA, 0, .35);
+                cv::arrowedLine(view, {x, y}, cv::Point(cvRound(x + velocity.x * 5), cvRound(y + velocity.y * 5)),
+                                color, 2, cv::LINE_8, 0, .45);
             }
         }
         return view;

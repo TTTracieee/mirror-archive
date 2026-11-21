@@ -216,7 +216,9 @@
         "E4B69E1F0A3A1BDC003C02F2",
         "MA0000000000000000000000",
         "MA0000000000000000000001",
-        "MA0000000000000000000002"
+        "MA0000000000000000000002",
+        "MA0000000000000000000100",
+        "MA0000000000000000000101"
       ],
       "isa": "PBXGroup",
       "path": "src",
@@ -288,6 +290,20 @@
       "lastKnownFileType": "sourcecode.cpp.h",
       "name": "LevelFactory.h",
       "path": "src/LevelFactory.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000100": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "PixelGrid.h",
+      "path": "src/PixelGrid.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000101": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "PixelUI.h",
+      "path": "src/PixelUI.h",
       "sourceTree": "SOURCE_ROOT"
     }
   },

@@ -14,18 +14,23 @@ struct LevelData {
 class LevelFactory {
 public:
     static constexpr int width = 900, height = 560;
+    static cv::Mat pixelArt(const cv::Mat& source) {
+        cv::Mat small, result;
+        cv::resize(source, small, {source.cols/2,source.rows/2}, 0, 0, cv::INTER_NEAREST);
+        cv::resize(small, result, source.size(), 0, 0, cv::INTER_NEAREST);
+        return result;
+    }
     static cv::Mat paper(unsigned seed = 17, bool dark = false) {
         cv::Mat image(height, width, CV_8UC3);
-        cv::RNG random(seed);
         for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
-            int grain = random.uniform(-4, 5);
+            int grain = ((x/8+y/8+seed)%5==0)?3:0;
             auto& pixel = image.at<cv::Vec3b>(y, x);
-            pixel = dark ? cv::Vec3b(43+grain, 54+grain, 40+grain)
-                         : cv::Vec3b(189+grain, 217+grain, 229+grain);
+            pixel = dark ? cv::Vec3b(53+grain, 42+grain, 35+grain)
+                         : cv::Vec3b(160+grain, 197+grain, 228+grain);
         }
-        for (int x = 30; x < width; x += 30)
-            cv::line(image, {x, 20}, {x, height-20}, dark ? cv::Scalar(46,58,45) : cv::Scalar(186,210,221), 1);
-        cv::rectangle(image, {18,18}, {width-19,height-19}, dark ? cv::Scalar(85,101,81) : cv::Scalar(148,174,185), 1);
+        for (int x = 60; x < width; x += 60)
+            cv::line(image, {x, 20}, {x, height-20}, dark ? cv::Scalar(56,45,38) : cv::Scalar(157,194,224), 2);
+        cv::rectangle(image, {18,18}, {width-19,height-19}, dark ? cv::Scalar(97,80,63) : cv::Scalar(96,138,176), 2);
         return image;
     }
 
@@ -62,10 +67,9 @@ public:
                 double a = j*CV_PI/12;
                 cv::circle(image, center+cv::Point(cvRound(cos(a)*58), cvRound(sin(a)*58)), 1, cv::Scalar(85,129,157), -1);
             }
-            cv::putText(image, cv::format("%02d",i+1), center+cv::Point(-11,82), cv::FONT_HERSHEY_SIMPLEX,.43,cv::Scalar(106,135,149),1,cv::LINE_AA);
             if (i==7) level.answer = {center.x-51,center.y-51,102,102};
         }
-        image.convertTo(level.observed, CV_8UC3, .37, 65);
+        pixelArt(image).convertTo(level.observed, CV_8UC3, .37, 65);
         cv::RNG random(923);
         for (int i=0; i<26000; ++i) {
             auto& pixel=level.observed.at<cv::Vec3b>(random.uniform(0,height),random.uniform(0,width));
@@ -111,9 +115,9 @@ public:
             cv::warpAffine(mask,alpha,transform,{230,230});
             cv::Rect region(center.x-95,center.y-95,230,230);
             rotated.copyTo(level.observed(region),alpha);
-            cv::putText(level.observed,cv::format("PLATE %02d",i+1),center+cv::Point(-39,112),cv::FONT_HERSHEY_SIMPLEX,.4,cv::Scalar(91,121,129),1,cv::LINE_AA);
             if(i==4)level.answer={center.x-65,center.y-65,130,130};
         }
+        level.observed=pixelArt(level.observed);
         return level;
     }
 
@@ -124,7 +128,7 @@ public:
         return {x,65+index*85};
     }
     static cv::Mat moth(int seed) {
-        cv::Mat tile(64,94,CV_8UC3,cv::Scalar(43,54,40));
+        cv::Mat tile(64,94,CV_8UC3,cv::Scalar(53,42,35));
         cv::Scalar wing(137,162,148);
         cv::ellipse(tile,{29,27},{21,17},-32,0,360,wing,-1,cv::LINE_AA);
         cv::ellipse(tile,{65,27},{21,17},32,0,360,wing,-1,cv::LINE_AA);
@@ -138,13 +142,13 @@ public:
         cv::ellipse(tile,{47,33},{4,24},0,0,360,cv::Scalar(201,207,173),-1,cv::LINE_AA);
         cv::line(tile,{46,14},{36,5},cv::Scalar(167,191,171),1,cv::LINE_AA);
         cv::line(tile,{48,14},{58,5},cv::Scalar(167,191,171),1,cv::LINE_AA);
-        return tile;
+        return pixelArt(tile);
     }
     static cv::Mat motionFrame(int frame) {
         cv::Mat image=paper(31,true);
         static const cv::Mat specimen=moth(0);
         for(int i=0;i<6;++i){
-            cv::line(image,{38,65+i*85},{862,65+i*85},cv::Scalar(66,80,65),1);
+            cv::line(image,{38,65+i*85},{862,65+i*85},cv::Scalar(66,65,55),2);
             auto center=mothCenter(i,frame);
             specimen.copyTo(image(cv::Rect(center.x-47,center.y-32,94,64)));
         }

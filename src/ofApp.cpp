@@ -1,41 +1,31 @@
 #include "ofApp.h"
 #include <filesystem>
-#include <sstream>
 
 namespace {
-const ofColor paper(243,239,229),ink(29,61,54),muted(113,124,111),gold(173,134,69);
-const ofColor white(253,251,245),line(218,218,201),teal(78,132,117),rust(170,89,65);
-constexpr float W=1440,H=940;
-const std::array<std::string,3> titles={"The drowned constellation","An original among echoes","The moth that remembers"};
-const std::array<std::string,3> chapters={"01 / THE LOST SEAL","02 / THE FORGER'S GALLERY","03 / THE NIGHT MIGRATION"};
-const std::array<std::string,3> descriptions={
-    "Salt, time and a faded photograph. Find the turquoise seal with seven points.",
-    "Six convincing engravings. Only one shares the reference's microscopic details.",
-    "Six identical moths. One travels against the current. Read its movement, not its face."};
-const std::array<std::array<std::string,3>,3> toolNames={{{"Restore","Chroma","Contour"},{"Inspect","Keypoints","Authenticate"},{"Afterimage","Flow field","Counterflow"}}};
-const std::array<std::array<std::string,3>,3> toolHints={{{"Median + intensity window","HSV + open / close","Denoise + Canny"},{"Magnify the etched details","SIFT scale + orientation","SIFT + ratio test + RANSAC"},{"Frame difference + threshold","Farneback optical flow","Filter measured leftward flow"}}};
-const std::array<std::string,3> missions={
-    "The inventory describes a turquoise, seven-point star. Several seals share its color. Several share its shape. Only one shares both.",
-    "The original was rotated and resized before it disappeared. Compare local features with this reference. A convincing outline is not enough.",
-    "The archive's moths drift east. One remembers the way home and flies west. Freeze time when you are ready to mark it."};
+using namespace pixel;
+constexpr int W=mirror::canvasWidth,H=mirror::canvasHeight;
+const std::array<std::string,3> titles={"LOST SEAL","THE ORIGINAL","NIGHT MOTHS"};
+const std::array<std::array<std::string,3>,3> toolNames={{{"CLEAN","COLOR","EDGES"},{"ZOOM","POINTS","MATCH -9"},{"TRAILS","FLOW","LEFTWARD"}}};
+const ofRectangle bookButton{534,8,28,25},helpButton{570,8,28,25},homeButton{606,8,28,25};
+const ofRectangle markButton{480,347,146,29},keepButton{490,246,126,25};
+const ofRectangle hintButton{490,293,88,26},restartButton{584,293,32,26};
+const ofRectangle toggleButton{490,211,126,23},compareButton{402,347,62,29};
+const ofRectangle closeButton{542,49,23,23},exportButton{430,316,128,24};
+ofRectangle toolButton(int i){return {12.f+i*130,347,122,29};}
+ofRectangle caseButton(int i){return {28.f+i*198,280,188,86};}
 }
 
 void ofApp::setup(){
     ofSetFrameRate(60);ofSetVerticalSync(true);ofEnableAlphaBlending();ofSetEscapeQuitsApp(false);
     cv::setNumThreads(2);
-    ofSetCircleResolution(64);ofSetWindowTitle("Mirror Archive | A game of seeing");
-    const std::string sans="/System/Library/Fonts/Avenir Next.ttc";
-    const std::string serif="/System/Library/Fonts/Supplemental/Baskerville.ttc";
-    const auto loadSans=[&](ofTrueTypeFont& font,int size,int index){
-        ofTrueTypeFontSettings settings(sans,size);settings.index=index;settings.addRange(ofUnicode::Latin1Supplement);
-        font.load(settings);
-    };
-    loadSans(bodyFont,15,7);loadSans(smallFont,12,5);loadSans(tinyFont,10,5);
-    headingFont.load(serif,30,true,true);titleFont.load(serif,46,true,true);largeFont.load(serif,61,true,true);
-    if(!bodyFont.isLoaded() || !headingFont.isLoaded())ofLogError()<<"Required macOS system fonts could not be loaded.";
+    ofDisableAntiAliasing();ofDisableSmoothing();ofSetWindowTitle("Mirror Archive");
     const auto resources=ofFilePath::getCurrentExeDir()+"../Resources/data/";
     if(ofDirectory::doesDirectoryExist(resources))ofSetDataPathRoot(resources);
-    if(!hero.load("art/archive.png"))ofLogError()<<"Archive illustration missing from application resources.";
+    if(!hero.load("art/pixel-cottage.png"))ofLogError()<<"Pixel background missing.";
+    else hero.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
+    ofFbo::Settings settings;settings.width=W;settings.height=H;
+    settings.internalformat=GL_RGBA;settings.textureTarget=GL_TEXTURE_2D;settings.numSamples=0;
+    canvas.allocate(settings);canvas.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
     const auto applicationSupport=ofFilePath::getUserHomeDir()+"/Library/Application Support/MirrorArchive";
     savePath=applicationSupport+"/progress.json";
     if(!qaMode){
@@ -49,7 +39,7 @@ void ofApp::loadLevel(int index){
     level=std::clamp(index,0,2);screen=Screen::Play;tool=0;radius=72;motionTick=0;
     session.reset({900,560});claimMode=false;dragging=false;help=false;notebook=false;
     cleanEdges=true;compare=false;notes.clear();snapshots.clear();lastBrush={-1,-1};
-    scanMessage="No region examined yet.";lastPoint={450,280};
+    scanMessage="";lastPoint={450,280};
     if(level==0){data=mirror::LevelFactory::relics();processed[0]=mirror::VisionEngine::restore(data.observed);
         processed[1]=mirror::VisionEngine::chroma(data.observed);processed[2]=mirror::VisionEngine::edges(data.observed);
         processed[3]=mirror::VisionEngine::edges(data.observed,false);
@@ -65,7 +55,7 @@ void ofApp::loadLevel(int index){
         data.answer=mirror::LevelFactory::motionAnswer(0);
     }
     nextMotion=ofGetElapsedTimef();dirty=true;refreshTexture();
-    notify(level==1?"Brush to inspect. Use Authenticate on a promising plate.":"Drag a lens over the photograph. Press E to keep a clue.");
+    toastUntil=0;
 }
 
 void ofApp::update(){
@@ -86,6 +76,7 @@ void ofApp::update(){
 void ofApp::upload(const cv::Mat& image,ofTexture& texture){
     cv::Mat rgb;cv::cvtColor(image,rgb,cv::COLOR_BGR2RGB);
     ofPixels pixels;pixels.setFromPixels(rgb.data,rgb.cols,rgb.rows,OF_PIXELS_RGB);texture.loadData(pixels);
+    texture.setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
 }
 void ofApp::refreshTexture(){
     int layer=level==0 && tool==2 && !cleanEdges?3:tool;
@@ -93,10 +84,10 @@ void ofApp::refreshTexture(){
     upload(compare?data.observed:display,sceneTexture);dirty=false;
 }
 void ofApp::selectTool(int index){tool=std::clamp(index,0,2);claimMode=false;dirty=true;lastBrush={-1,-1};}
-void ofApp::notify(const std::string& message){toastMessage=message;toastUntil=ofGetElapsedTimef()+4.5f;}
+void ofApp::notify(const std::string& message){toastMessage=message;toastUntil=ofGetElapsedTimef()+2.5f;}
 glm::vec2 ofApp::logical(float x,float y)const{
-    float scale=std::min(ofGetWidth()/W,ofGetHeight()/H);
-    return {(x-(ofGetWidth()-W*scale)/2)/scale,(y-(ofGetHeight()-H*scale)/2)/scale};
+    auto view=mirror::pixelViewport(ofGetWidth(),ofGetHeight());
+    return {view.localX(x),view.localY(y)};
 }
 bool ofApp::over(const ofRectangle& rect)const{return rect.inside(logical(ofGetMouseX(),ofGetMouseY()));}
 cv::Point ofApp::scenePoint(glm::vec2 p)const{return {std::clamp(int((p.x-sceneRect.x)/sceneRect.width*900),0,899),std::clamp(int((p.y-sceneRect.y)/sceneRect.height*560),0,559)};}
@@ -112,45 +103,46 @@ void ofApp::brushAt(glm::vec2 position){
     for(int i=1;i<=steps;++i){
         glm::vec2 q=glm::mix(lastBrush,p,float(i)/steps);
         if(!session.brush(layer,{int(q.x),int(q.y)},radius,level==1?75:135)){
-            notify("Not enough energy for this area. Use your existing clues or restart (R).");break;
+            notify("LOW ENERGY");break;
         }
     }
     lastBrush=p;dirty=true;
 }
 void ofApp::scanAt(cv::Point point){
-    if(!session.spend(9)){notify("Authentication needs 9 energy. Restart with R to try a new route.");return;}
+    if(!session.spend(9)){notify("NEED 9 ENERGY");return;}
     ++session.scans;
     const cv::Rect region(point.x-130,point.y-130,260,260);
     const auto result=mirror::VisionEngine::match(data.reference,data.observed,region);
     const cv::Rect clipped=region & cv::Rect(0,0,900,560);
     result.view(clipped).copyTo(processed[2](clipped));
     session.masks[2](clipped).setTo(255);
-    scanMessage=ofToString(result.ratioMatches)+" ratio matches / "+ofToString(result.inliers)+" inliers";
+    scanMessage=ofToString(result.inliers)+" INLIERS";
     session.hasMatch|=result.verified;
-    if(result.verified){session.evidence[2]=true;notify("Authentic detail found. Geometry agrees. Mark the original.");}
-    else notify("No reliable geometric agreement. Try a different region.");
+    if(result.verified){session.evidence[2]=true;notify("MATCH FOUND!");}
+    else notify("NO MATCH");
     dirty=true;
 }
 void ofApp::captureEvidence(){
-    if(cv::countNonZero(session.masks[tool])<500){notify("Explore a region before collecting its evidence.");return;}
+    if(cv::countNonZero(session.masks[tool])<500){notify("EXPLORE FIRST");return;}
     if(level==2 && tool>0){
         cv::Mat motionMask;std::vector<cv::Mat> axes;cv::split(flow,axes);
         cv::compare(cv::abs(axes[0]),.55,motionMask,cv::CMP_GT);
         cv::bitwise_and(motionMask,session.masks[tool],motionMask);
-        if(cv::countNonZero(motionMask)<30){notify("No movement measured here yet. Unfreeze and explore a moth.");return;}
+        if(cv::countNonZero(motionMask)<30){notify("NO MOTION HERE");return;}
     }
-    if(level==1 && tool==2 && !session.hasMatch){notify("Collect a verified match before sealing this evidence.");return;}
-    if(notes.size()>=6){notify("Notebook full. Your six clues are safe for this case.");return;}
+    if(level==1 && tool==2 && !session.hasMatch){notify("FIND A MATCH FIRST");return;}
+    if(notes.size()>=6){notify("NOTEBOOK FULL");return;}
     session.evidence[tool]=true;
     refreshTexture();
     cv::Mat rgb;cv::cvtColor(display,rgb,cv::COLOR_BGR2RGB);ofPixels pixels;
     pixels.setFromPixels(rgb.data,rgb.cols,rgb.rows,OF_PIXELS_RGB);ofImage snapshot;snapshot.setFromPixels(pixels);
+    snapshot.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
     snapshots.push_back(snapshot);
-    notes.push_back(toolNames[level][tool]+" / "+(level==1&&tool==2?scanMessage:toolHints[level][tool]));
-    notify("Evidence added to your notebook (N). Energy unchanged.");
+    notes.push_back(toolNames[level][tool]+(level==1&&tool==2?" / "+scanMessage:""));
+    notify("CLUE SAVED");
 }
 void ofApp::exportEvidence(){
-    if(snapshots.empty()){notify("Keep a clue with E before exporting.");return;}
+    if(snapshots.empty()){notify("NO CLUES YET");return;}
     const std::string folder=ofFilePath::getEnclosingDirectory(savePath)+"evidence/"+ofGetTimestampString("%Y%m%d-%H%M%S")+"/";
     try{
         std::filesystem::create_directories(folder);
@@ -160,192 +152,176 @@ void ofApp::exportEvidence(){
         ofJson metadata;metadata["case"]=level+1;metadata["energy"]=session.energy;metadata["notes"]=notes;
         if(!ofSavePrettyJson(folder+"evidence.json",metadata))throw std::runtime_error("Cannot save evidence metadata");
         notebook=false;
-        notify("Clues exported to Application Support / MirrorArchive / evidence.");
+        notify("CLUES EXPORTED");
     }catch(const std::exception& e){notebook=false;notify(std::string("Export failed: ")+e.what());}
 }
 void ofApp::claimAt(cv::Point point){
-    if(!session.ready(level)){notify(level==0?"Keep a Chroma clue and a Contour clue with E first.":level==1?"Authenticate the original before making your claim.":"Keep a measured Flow field or Counterflow clue with E first.");return;}
+    if(!session.ready(level)){notify(level==0?"SAVE COLOR + EDGES":level==1?"FIND A MATCH FIRST":"SAVE A FLOW CLUE");return;}
     if(!data.answer.contains(point)){
         ++session.mistakes;session.energy=std::max(0.f,session.energy-12);claimMode=false;
-        notify("The evidence does not agree. -12 energy. Look again.");return;
+        notify("WRONG OBJECT  -12");return;
     }
     session.solved=true;screen=Screen::Result;
     bestStars[level]=std::max(bestStars[level],session.stars());saveProgress();
 }
 void ofApp::useHint(){
-    if(!session.spend(12)){notify("A hint needs 12 energy.");return;}
+    if(!session.spend(12)){notify("NEED 12 ENERGY");return;}
     ++session.hints;
-    const std::array<std::string,3> hints={"Compare turquoise seals 01, 06, 08 and 11. Count the star tips.","The original is in the lower row. Match its small etched marks.","Inspect the fourth horizontal flight path. Gold arrows point west."};
+    const std::array<std::string,3> hints={"TEAL SEALS: COUNT THE POINTS","LOOK IN THE LOWER ROW","WATCH THE FOURTH MOTH"};
     notify(hints[level]);toastUntil=ofGetElapsedTimef()+9;
 }
 void ofApp::saveProgress(){
     if(qaMode)return;
     try{ofJson j;j["bestStars"]=bestStars;if(!ofSavePrettyJson(savePath,j))throw std::runtime_error("Cannot write progress file");}
-    catch(const std::exception& e){ofLogWarning()<<"Cannot save progress: "<<e.what();notify("Case solved. Progress could not be saved.");}
+    catch(const std::exception& e){ofLogWarning()<<"Cannot save progress: "<<e.what();notify("SAVE FAILED");}
 }
 void ofApp::exit(){saveProgress();}
 
-void ofApp::panel(float x,float y,float w,float h,ofColor color,float radius){ofSetColor(color);ofDrawRectRounded(x,y,w,h,radius);}
-void ofApp::label(const std::string& text,float x,float y,ofColor color,int style){
-    ofSetColor(color);
-    auto& font=style==1?smallFont:style==2?headingFont:style==3?titleFont:style==4?tinyFont:style==5?largeFont:bodyFont;
-    font.drawString(text,x,y);
+void ofApp::panel(float x,float y,float w,float h,ofColor color,float){pixel::panel(int(x),int(y),int(w),int(h),color);}
+void ofApp::label(const std::string& value,float x,float y,ofColor color,int style){
+    const int scale=style>=3?3:style==2?2:1;
+    pixel::text(value,int(x),int(y)-7*scale,color,scale);
 }
-void ofApp::paragraph(const std::string& text,float x,float y,float maxWidth,ofColor color,int style){
-    auto& font=style==1?smallFont:bodyFont;
-    std::istringstream words(text);std::string word,row;
-    while(words>>word){
-        auto next=row.empty()?word:row+" "+word;
-        if(font.stringWidth(next)>maxWidth && !row.empty()){label(row,x,y,color,style);y+=style==1?21:26;row=word;}else row=next;
-    }
-    if(!row.empty())label(row,x,y,color,style);
-}
-void ofApp::button(const std::string& text,const ofRectangle& rect,bool active){
-    bool hover=over(rect);panel(rect.x,rect.y,rect.width,rect.height,active?ink:hover?ofColor(226,232,218):white,10);
-    label(text,rect.x+(rect.width-bodyFont.stringWidth(text))/2,rect.y+rect.height/2+6,active?paper:ink);
+void ofApp::button(const std::string& value,const ofRectangle& rect,bool active){
+    const auto fill=active?green:over(rect)?light:paper;
+    pixel::panel(rect.x,rect.y,rect.width,rect.height,fill);
+    const int x=int(rect.x+(rect.width-pixel::textWidth(value))/2);
+    pixel::text(value,x,int(rect.y+(rect.height-7)/2),active?light:ink);
 }
 void ofApp::drawIcon(int icon,float x,float y,float size,ofColor color){
-    ofPushStyle();ofSetColor(color);ofNoFill();ofSetLineWidth(1.7);
-    if(icon==0){ofDrawCircle(x,y,size*.34);ofDrawLine(x+size*.25,y+size*.25,x+size*.48,y+size*.48);ofDrawLine(x-size*.18,y,x+size*.18,y);ofDrawLine(x,y-size*.18,x,y+size*.18);}
-    else if(icon==1){for(int i=0;i<3;++i){float a=i*TWO_PI/3-HALF_PI;ofDrawCircle(x+cos(a)*size*.17,y+sin(a)*size*.17,size*.24);}}
-    else if(icon==2){ofBeginShape();for(int i=0;i<14;++i){float a=i*PI/7-HALF_PI;float r=size*(i%2?.19:.43);ofVertex(x+cos(a)*r,y+sin(a)*r);}ofEndShape(true);}
-    else{ofDrawRectangle(x-size*.32,y-size*.38,size*.64,size*.76);ofDrawLine(x-size*.16,y-size*.15,x+size*.16,y-size*.15);ofDrawLine(x-size*.16,y+size*.05,x+size*.16,y+size*.05);}
-    ofPopStyle();
+    pixel::sprite(icon,int(x),int(y),std::max(1,int(size)/13),color);
 }
 
 void ofApp::draw(){
-    ofBackground(paper);ofPushMatrix();float scale=std::min(ofGetWidth()/W,ofGetHeight()/H);
-    ofTranslate((ofGetWidth()-W*scale)/2,(ofGetHeight()-H*scale)/2);ofScale(scale,scale);
+    ofBackground(shadow);
+    canvas.begin();ofClear(shadow);ofPushStyle();ofFill();ofDisableAntiAliasing();ofDisableSmoothing();
     if(screen==Screen::Home)drawHome();else if(screen==Screen::Play)drawPlay();else drawResult();
     if(help||notebook)drawModal();
-    if(screen==Screen::Play && !help && !notebook && ofGetElapsedTimef()<toastUntil){
-        float width=std::min(1020.f,smallFont.stringWidth(toastMessage)+40);
-        float x=sceneRect.x+(sceneRect.width-width)/2;
-        panel(x,254,width,40,ink,20);label(toastMessage,x+20,280,paper,1);
+    if(screen==Screen::Play&&!help&&!notebook&&ofGetElapsedTimef()<toastUntil){
+        const int width=std::min(438,pixel::textWidth(toastMessage)+24);
+        const int x=int(sceneRect.x+(sceneRect.width-width)/2);
+        pixel::panel(x,303,width,25,paper);pixel::text(toastMessage,x+12,312,ink);
     }
-    ofPopMatrix();
+    ofPopStyle();canvas.end();
+    const auto view=mirror::pixelViewport(ofGetWidth(),ofGetHeight());
+    ofSetColor(255);canvas.draw(view.x,view.y,W*view.scale,H*view.scale);
 }
 void ofApp::drawHome(){
     ofSetColor(255);if(hero.isAllocated())hero.draw(0,0,W,H);
-    // Quiet opaque paper under text makes the illustrated menu readable at every size.
-    panel(45,44,550,534,ofColor(246,242,232,234),24);
-    drawIcon(2,88,88,35,ink);label("MIRROR ARCHIVE",118,95,ink,1);
-    label("A GAME OF SEEING",81,160,gold,4);
-    label("Every picture",77,248,ink,5);label("keeps a secret.",77,318,ink,5);
-    paragraph("Three mysteries. A handful of light. Choose what to reveal, collect your evidence, and find what the eye alone can miss.",82,374,428,muted);
-    button("Enter the archive  >",{81,478,280,57},true);
-    label("MOUSE ONLY  /  NO CAMERA NEEDED",82,562,muted,4);
-    panel(45,614,1350,280,ofColor(248,245,237,248),24);
-    label("THE CASE FILES",73,650,gold,1);label("Choose any case. Return for a better route.",1040,650,muted,1);
-    for(int i=0;i<3;++i){
-        float x=73+i*444;
-        ofRectangle rect(x,674,418,192);panel(x,674,418,192,over(rect)?ofColor(226,233,219):white,14);
-        drawIcon(i,x+36,712,27,teal);label("0"+ofToString(i+1),x+361,716,gold,2);
-        const std::array<std::string,3> shortTitles={"The lost seal","The forger's gallery","The night migration"};
-        label(shortTitles[i],x+22,759,ink,2);
-        paragraph(i==0?"Separate color from shape.":i==1?"Trust detail over resemblance.":"Make the invisible movement visible.",x+23,792,365,muted,1);
-        label(bestStars[i]?ofToString(bestStars[i])+" / 3 SEALS EARNED":"UNOPENED CASE",x+23,840,gold,4);
-        label("OPEN  >",x+320,840,ink,4);
+    pixel::panel(159,18,322,64,wood);
+    pixel::text("MIRROR ARCHIVE",205,43,ink,3);
+    pixel::text("MIRROR ARCHIVE",203,41,light,3);
+    drawIcon(2,177,49,13,gold);drawIcon(2,465,49,13,gold);
+    // A few whole-pixel glints, without subpixel movement or blurred light sprites.
+    for(int i=0;i<5;++i){
+        int x=100+i*107,y=125+(i*37)%92;
+        if(std::sin(ofGetElapsedTimef()*1.5+i)>0.5){
+            ofSetColor(gold);ofDrawRectangle(x-2,y,5,1);ofDrawRectangle(x,y-2,1,5);
+        }
     }
-    label("An interactive image-processing mystery",57,922,muted,4);
-    label("H  HOW TO PLAY",1250,922,muted,4);
+    for(int i=0;i<3;++i){
+        auto rect=caseButton(i);const bool hover=over(rect);
+        pixel::panel(rect.x,rect.y,rect.width,rect.height,hover?light:paper);
+        drawIcon(i==0?2:i==1?12:8,rect.x+30,rect.y+30,26,i==0?teal:i==1?gold:ofColor(157,132,192));
+        pixel::text(titles[i],rect.x+58,rect.y+24,ink);
+        for(int j=0;j<3;++j)drawIcon(2,rect.x+73+j*25,rect.y+56,13,j<bestStars[i]?gold:ofColor(179,142,91));
+        if(hover)pixel::text(">",rect.x+169,rect.y+25,red);
+    }
+    button("?",{606,8,28,25});
 }
 
 void ofApp::drawPlay(){
-    drawIcon(2,73,51,31,ink);label("MIRROR ARCHIVE",99,58,ink,1);
-    label(chapters[level],502,58,gold,1);
-    button("Notebook "+ofToString(notes.size()),{1028,29,167,44});button("?",{1208,29,47,44});button("Archive",{1268,29,116,44});
-    ofSetColor(line);ofDrawLine(56,91,1384,91);
-    label(titles[level],56,146,ink,2);
-    label(claimMode?"MARK MODE  /  Click the object your evidence supports.":descriptions[level],57,177,muted,1);
-    label("EXPLORATION ENERGY",1130,125,muted,4);
-    label(ofToString(int(std::ceil(session.energy)))+" / 100",1272,151,ink);
-    panel(1130,142,125,7,line,3);panel(1130,142,125*session.energy/100,7,session.energy<20?rust:teal,3);
-    panel(51,193,1045,654,ofColor(214,211,194),15);
-    ofSetColor(255);sceneTexture.draw(sceneRect);
-    // Status chips stay outside the pixels used by every vision algorithm.
-    panel(73,214,level==2?209:174,30,ofColor(29,61,54,229),15);
-    label(compare?"ORIGINAL OBSERVATION":level==2?(session.paused?"TIME FROZEN / SPACE":"LIVE ARCHIVE / SPACE"):"OBSERVATION PLATE",85,235,paper,4);
-    if(level==0 && tool==2){panel(75,789,327,32,ofColor(29,61,54,235),16);label(cleanEdges?"DENOISE ON / X to compare raw Canny":"RAW CANNY / X to remove the salt noise",89,811,paper,4);}
-    if(level==1 && tool==2){panel(75,789,437,32,ofColor(29,61,54,235),16);label(scanMessage,89,811,paper,1);}
+    ofSetColor(shadow);ofDrawRectangle(0,0,W,H);
+    // Plank frame: the playable image remains the dominant part of the screen.
+    for(int y=42;y<H;y+=24){ofSetColor(y%48?ofColor(83,49,39):ofColor(89,53,40));ofDrawRectangle(0,y,W,23);}
+    pixel::panel(5,3,630,38,wood);
+    pixel::text(ofToString(level+1)+" "+titles[level],17,15,light,2);
+    drawIcon(7,393,21,13,gold);
+    ofSetColor(ink);ofDrawRectangle(408,14,82,13);
+    for(int i=0;i<20;++i){ofSetColor(session.energy>i*5?(session.energy<20?red:green):edge);ofDrawRectangle(410+i*4,16,3,9);}
+    pixel::text(ofToString(int(std::ceil(session.energy))),498,17,light);
+    button("",bookButton);drawIcon(5,548,20,13,gold);
+    button("?",helpButton);button("",homeButton);drawIcon(6,620,20,13,green);
+    pixel::panel(8,49,462,292,wood);ofSetColor(255);sceneTexture.draw(sceneRect);
+    pixel::panel(480,49,146,292,paper);
+    pixel::text(level==1?"FIND THE ORIGINAL":"FIND",level==1?502:540,65,ink);
+    if(level==0){
+        // Same seven-point symbol as the clue; drawn on the low-resolution canvas.
+        auto shape=mirror::LevelFactory::star({553,111},25,12,7);
+        ofSetColor(ink);ofBeginShape();for(auto p:shape)ofVertex(p.x+1,p.y+2);ofEndShape(true);
+        ofSetColor(teal);ofBeginShape();for(auto p:shape)ofVertex(p.x,p.y);ofEndShape(true);
+        pixel::text("TEAL + 7 POINTS",512,148,ink);
+    }else if(level==1){
+        ofSetColor(ink);ofDrawRectangle(500,84,106,106);
+        ofSetColor(255);referenceTexture.draw(503,87,100,100);
+    }else{
+        drawIcon(8,553,111,39,ofColor(185,158,220));
+        drawIcon(4,553,151,13,gold);pixel::text("FLIES LEFT",524,172,ink);
+    }
+    auto check=[&](const std::string& name,int y,bool complete){
+        ofSetColor(ink);ofDrawRectangle(498,y-1,11,10);ofSetColor(complete?green:wood);ofDrawRectangle(499,y,9,8);
+        if(complete)pixel::text("+",501,y+1,light);
+        pixel::text(name,516,y+1,ink);
+    };
+    if(level==0){check("COLOR",176,session.evidence[1]);check("OUTLINE",192,session.evidence[2]);}
+    else if(level==1){check("MATCH",199,session.hasMatch);if(!scanMessage.empty())pixel::text(scanMessage,505,219,ink);}
+    else check("MOTION",192,session.ready(level));
+    if(level==0&&tool==2)button(cleanEdges?"SMOOTH: ON":"SMOOTH: OFF",toggleButton,cleanEdges);
+    if(level==2)button(session.paused?"RESUME":"PAUSE",toggleButton,session.paused);
+    button("SAVE CLUE",keepButton);button("HINT -12",hintButton);
+    button("",restartButton);drawIcon(11,600,305,13,red);
+    for(int i=0;i<3;++i){
+        auto rect=toolButton(i);bool active=tool==i&&!claimMode;
+        button("",rect,active);drawIcon(i,int(rect.x)+17,361,13,active?light:teal);
+        pixel::text(ofToString(i+1)+" "+toolNames[level][i],rect.x+32,358,active?light:ink);
+    }
+    button(compare?"BACK":"BEFORE",compareButton,compare);
+    button(claimMode?"PICK OBJECT":"MARK",markButton,true);
+    if(level==1&&tool==0&&cv::countNonZero(session.masks[0])>0){
+        pixel::panel(22,218,118,108,wood);ofSetColor(255);
+        sceneTexture.drawSubsection(28,224,106,96,std::clamp(lastPoint.x-23,0,854),std::clamp(lastPoint.y-21,0,518),46,42);
+    }
     auto mouse=logical(ofGetMouseX(),ofGetMouseY());
     if(sceneRect.inside(mouse)&&!help&&!notebook){
-        ofPushStyle();ofNoFill();ofSetLineWidth(1.4);ofSetColor(white);
-        float r=(level==1&&tool==2?130:radius)*sceneRect.width/900;
-        if(claimMode){ofDrawCircle(mouse,15);ofDrawLine(mouse.x-24,mouse.y,mouse.x+24,mouse.y);ofDrawLine(mouse.x,mouse.y-24,mouse.x,mouse.y+24);}
-        else if(level==1&&tool==2)ofDrawRectRounded(mouse.x-r,mouse.y-r,r*2,r*2,8);
-        else ofDrawCircle(mouse,r);
-        ofPopStyle();
-    }
-    panel(1117,198,267,644,white,16);
-    label("THE CURATOR'S NOTE",1138,233,gold,4);
-    paragraph(missions[level],1138,268,224,ink,1);
-    float evidenceY=level==1?611:491;
-    if(level==0){drawIcon(2,1250,427,62,teal);label("COLOR + SHAPE",1188,473,muted,4);}
-    if(level==1){ofSetColor(255);referenceTexture.draw(1165,398,171,171);label("REFERENCE / ORIGINAL",1165,594,muted,4);}
-    if(level==2){drawIcon(0,1249,421,57,teal);label("GOLD <   /   > TEAL",1179,473,muted,4);}
-    label("EVIDENCE REQUIRED",1138,evidenceY,gold,4);
-    if(level==0){
-        label(std::string(session.evidence[1]?"[+]":"[ ]")+" Color isolated",1138,evidenceY+30,session.evidence[1]?teal:muted,1);
-        label(std::string(session.evidence[2]?"[+]":"[ ]")+" Outline inspected",1138,evidenceY+57,session.evidence[2]?teal:muted,1);
-    }else label(std::string(session.ready(level)?"[+] ":"[ ] ")+(level==1?"Geometry verified":"Motion measured"),1138,evidenceY+30,session.ready(level)?teal:muted,1);
-    if(level!=1){paragraph("Drag to explore. E keeps a clue. Mark the object when the evidence agrees.",1138,606,222,muted,1);}
-    button("Keep evidence  [E]",{1138,704,225,43});button("Hint  -12",{1138,760,105,40});button("Restart",{1254,760,109,40});
-    label("1-3 LENSES   [ ] SIZE   TAB BEFORE",1138,827,muted,4);
-    for(int i=0;i<3;++i){
-        float x=56+i*282;bool active=tool==i&&!claimMode;
-        panel(x,862,270,62,active?ink:ofColor(230,230,217),12);
-        drawIcon(i,x+31,893,27,active?paper:teal);
-        label(ofToString(i+1)+"  "+toolNames[level][i],x+57,886,active?paper:ink,1);
-        label(toolHints[level][i],x+57,908,active?ofColor(177,199,181):muted,4);
-    }
-    button(claimMode?"Click your answer":"Mark the object  [M]",{918,862,240,62},true);
-    label(level==1&&tool==2?"9 ENERGY / SCAN":"NEW AREA ONLY",1180,885,muted,4);
-    label(level==1&&tool==2?"Click to authenticate":"BRUSH  "+ofToString(radius)+" px",1180,912,ink,1);
-    if(level==1&&tool==0&&cv::countNonZero(session.masks[0])>0){
-        panel(74,598,226,225,ink,12);ofSetColor(255);
-        sceneTexture.drawSubsection(84,608,206,181,std::clamp(lastPoint.x-45,0,810),std::clamp(lastPoint.y-40,0,480),90,80);
-        label("INSPECTION LOUPE / 2.3x",88,811,paper,4);
+        int x=int(mouse.x),y=int(mouse.y),r=(level==1&&tool==2?130:radius)/2;
+        ofSetColor(light);
+        const auto dot=[&](int px,int py){if(sceneRect.inside(px,py))ofDrawRectangle(px,py,1,1);};
+        if(claimMode){for(int i=-7;i<=7;++i){dot(x+i,y);dot(x,y+i);}}
+        else if(level==1&&tool==2){
+            for(int dx:{-r,r})for(int dy:{-r,r}){
+                for(int i=0;i<8;++i){dot(x+dx-(dx>0?7:0)+i,y+dy);dot(x+dx,y+dy-(dy>0?7:0)+i);}
+            }
+        }else{
+            for(int yStep=-r;yStep<=r;++yStep){int xStep=int(std::sqrt(float(r*r-yStep*yStep)));dot(x-xStep,y+yStep);dot(x+xStep,y+yStep);}
+        }
     }
 }
 
 void ofApp::drawResult(){
-    if(hero.isAllocated()){ofSetColor(255,255,255,70);hero.draw(0,0,W,H);}
-    panel(298,115,844,718,ofColor(253,251,245,248),24);
-    label("CASE "+ofToString(level+1)+" / RESTORED TO THE ARCHIVE",477,173,gold,1);
-    drawIcon(2,720,240,78,teal);
-    label("A secret, brought to light.",397,335,ink,3);
-    paragraph(level==0?"You separated color from geometry. Neither clue was enough alone.":level==1?"The engraving survived rotation and scale. Its local features still told the truth.":"Identical appearances hid different intentions. Movement revealed the impostor.",425,389,590,muted);
-    for(int i=0;i<3;++i)drawIcon(2,655+i*65,491,42,i<session.stars()?gold:line);
-    label(ofToString(int(std::ceil(session.energy)))+" energy left",425,567,ink);
-    label(ofToString(session.mistakes)+" false claims",650,567,ink);
-    label(ofToString(session.hints)+" hints used",865,567,ink);
-    paragraph("Three seals: finish with 50+ energy, no false claims and no hints. Explore less. Observe more.",425,616,590,muted,1);
-    button(level<2?"Open the next case  >":"Back to the archive",{425,695,359,57},true);
-    button("Replay case",{803,695,211,57});
-    label("R REPLAY   /   ENTER CONTINUE   /   ESC ARCHIVE",502,793,muted,4);
+    ofSetColor(255);if(hero.isAllocated())hero.draw(0,0,W,H);
+    ofSetColor(24,20,36,110);ofDrawRectangle(0,0,W,H);
+    pixel::panel(148,75,344,239,paper);
+    pixel::text("CASE SOLVED!",249,102,ink,2);
+    for(int i=0;i<3;++i)drawIcon(2,266+i*54,160,39,i<session.stars()?gold:ofColor(175,145,110));
+    const std::string energy="ENERGY "+ofToString(int(std::ceil(session.energy)));
+    pixel::text(energy,(W-pixel::textWidth(energy))/2,207,ink);
+    button("REPLAY",{172,253,126,35});button(level<2?"NEXT >":"HOME",{318,253,150,35},true);
 }
 void ofApp::drawModal(){
-    ofSetColor(20,40,32,170);ofDrawRectangle(0,0,W,H);
-    panel(250,110,940,730,paper,23);button("Close  [Esc]",{1000,135,160,45});
-    label(notebook?"Your evidence notebook":"The art of looking",291,178,ink,3);
+    ofSetColor(24,20,36,180);ofDrawRectangle(0,0,W,H);
+    pixel::panel(64,40,512,309,paper);button("X",closeButton);
+    pixel::text(notebook?"CLUES":"CONTROLS",82,57,ink,2);
     if(notebook){
-        if(notes.empty())paragraph("A blank page, for now. Explore with a lens, then press E to pin the processed observation here.",295,250,680,muted);
-        for(size_t i=0;i<notes.size();++i){float x=290+(i%3)*294,y=219+(i/3)*278;
-            panel(x,y,276,253,white,12);ofSetColor(255);snapshots[i].draw(x+10,y+10,256,159);
-            paragraph(notes[i],x+14,y+194,245,ink,1);
+        if(notes.empty())pixel::text("NO CLUES YET",275,178,wood);
+        for(size_t i=0;i<notes.size();++i){
+            int x=80+(i%3)*160,y=91+(i/3)*108;
+            pixel::panel(x,y,144,99,light);ofSetColor(255);snapshots[i].draw(x+5,y+5,134,78);
+            pixel::text(notes[i].substr(0,22),x+6,y+86,ink);
         }
-        button("Export clues as PNG + JSON  [S]",{754,775,390,43});
+        button("EXPORT",exportButton);
     }else{
-        const std::array<std::string,6> tips={
-            "01   EXPLORE / Drag the mouse to brush a local lens across the observation. Keys 1, 2 and 3 switch lenses. Scroll or [ ] changes brush size.",
-            "02   KEEP CLUES / E pins a snapshot to your notebook. N opens it. Case 01 needs both a Chroma and a Contour clue. Case 02 needs a verified match. Case 03 needs measured motion.",
-            "03   MAKE A CLAIM / M selects the marking tool. Click the object you believe is correct. A false claim costs 12 energy. You can always restart with R.",
-            "04   EXPERIMENT / Tab toggles the original observation. X switches Canny denoising in case 01. In case 02, Authenticate scans a square region for 9 energy.",
-            "05   STOP TIME / Space freezes the moth sequence in case 03. Measured arrows remain visible so you can inspect and mark precisely.",
-            "06   SPEND WISELY / New lens area uses energy; returning to an explored area is free. Keep 50 energy, avoid hints and false claims to earn all three seals."};
-        for(int i=0;i<6;++i)paragraph(tips[i],294,237+i*87,843,ink,1);
-        label("All effects are computed from the observation pixels. No camera, props or internet required.",294,797,teal,1);
+        const std::array<std::pair<std::string,std::string>,9> controls={{{"DRAG","EXPLORE"},{"1 2 3","SWITCH TOOL"},{"SCROLL","BRUSH SIZE"},{"E / N","SAVE / VIEW CLUES"},{"M","MARK OBJECT"},{"TAB","BEFORE / AFTER"},{"SPACE","PAUSE MOTHS"},{"X","SMOOTH EDGES"},{"R / ESC","RETRY / HOME"}}};
+        for(int i=0;i<int(controls.size());++i){pixel::text(controls[i].first,100,100+i*24,wood);pixel::text(controls[i].second,274,100+i*24,ink);}
     }
 }
 
@@ -353,29 +329,34 @@ void ofApp::mousePressed(int x,int y,int buttonCode){
     if(buttonCode!=OF_MOUSE_BUTTON_LEFT)return;
     auto p=logical(x,y);
     if(help||notebook){
-        if(ofRectangle(1000,135,160,45).inside(p)){help=false;notebook=false;}
-        else if(notebook&&ofRectangle(754,775,390,43).inside(p))exportEvidence();
+        if(closeButton.inside(p)){help=false;notebook=false;}
+        else if(notebook&&exportButton.inside(p))exportEvidence();
         return;
     }
     if(screen==Screen::Home){
-        if(ofRectangle(81,478,280,57).inside(p)){loadLevel(0);return;}
-        for(int i=0;i<3;++i)if(ofRectangle(73+i*444,674,418,192).inside(p)){loadLevel(i);return;}
-        if(ofRectangle(1220,896,180,40).inside(p))help=true;
+        for(int i=0;i<3;++i)if(caseButton(i).inside(p)){loadLevel(i);return;}
+        if(ofRectangle(606,8,28,25).inside(p))help=true;
         return;
     }
     if(screen==Screen::Result){
-        if(ofRectangle(425,695,359,57).inside(p)){if(level<2)loadLevel(level+1);else screen=Screen::Home;}
-        else if(ofRectangle(803,695,211,57).inside(p))loadLevel(level);
+        if(ofRectangle(318,253,150,35).inside(p)){if(level<2)loadLevel(level+1);else screen=Screen::Home;}
+        else if(ofRectangle(172,253,126,35).inside(p))loadLevel(level);
         return;
     }
-    if(ofRectangle(1028,29,167,44).inside(p)){notebook=true;return;}
-    if(ofRectangle(1208,29,47,44).inside(p)){help=true;return;}
-    if(ofRectangle(1268,29,116,44).inside(p)){screen=Screen::Home;return;}
-    for(int i=0;i<3;++i)if(ofRectangle(56+i*282,862,270,62).inside(p)){selectTool(i);return;}
-    if(ofRectangle(918,862,240,62).inside(p)){claimMode=!claimMode;return;}
-    if(ofRectangle(1138,704,225,43).inside(p)){captureEvidence();return;}
-    if(ofRectangle(1138,760,105,40).inside(p)){useHint();return;}
-    if(ofRectangle(1254,760,109,40).inside(p)){loadLevel(level);return;}
+    if(bookButton.inside(p)){notebook=true;return;}
+    if(helpButton.inside(p)){help=true;return;}
+    if(homeButton.inside(p)){screen=Screen::Home;return;}
+    for(int i=0;i<3;++i)if(toolButton(i).inside(p)){selectTool(i);return;}
+    if(markButton.inside(p)){claimMode=!claimMode;return;}
+    if(keepButton.inside(p)){captureEvidence();return;}
+    if(hintButton.inside(p)){useHint();return;}
+    if(restartButton.inside(p)){loadLevel(level);return;}
+    if(compareButton.inside(p)){compare=!compare;dirty=true;return;}
+    if(toggleButton.inside(p)){
+        if(level==2)session.paused=!session.paused;
+        if(level==0&&tool==2){cleanEdges=!cleanEdges;dirty=true;}
+        return;
+    }
     if(sceneRect.inside(p)){
         if(claimMode)claimAt(scenePoint(p));
         else{lastBrush={-1,-1};brushAt(p);dragging=!(level==1&&tool==2);}
@@ -384,6 +365,9 @@ void ofApp::mousePressed(int x,int y,int buttonCode){
 void ofApp::mouseDragged(int x,int y,int button){if(dragging&&screen==Screen::Play&&!help&&!notebook)brushAt(logical(x,y));}
 void ofApp::mouseReleased(int,int,int){dragging=false;lastBrush={-1,-1};}
 void ofApp::mouseScrolled(int,int,float,float sy){radius=std::clamp(radius+int(sy*8),28,138);}
+void ofApp::windowResized(int width,int height){
+    if(width<W||height<H)ofSetWindowShape(std::max(width,W),std::max(height,H));
+}
 void ofApp::keyPressed(int key){
     if(key==OF_KEY_ESC){if(help||notebook){help=false;notebook=false;}else screen=Screen::Home;dragging=false;return;}
     if(key=='h'||key=='H'){help=!help;notebook=false;return;}

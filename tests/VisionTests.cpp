@@ -1,6 +1,7 @@
 #include "VisionEngine.h"
 #include "GameModel.h"
 #include "LevelFactory.h"
+#include "PixelGrid.h"
 #include <iostream>
 #include <stdexcept>
 
@@ -11,6 +12,14 @@ void require(bool condition,const std::string& message){
 int main(){
     try{
         using namespace mirror;
+        auto retina=pixelViewport(2560,1536);
+        require(retina.scale==4&&retina.x==0&&retina.y==0,"Retina canvas uses exact 4x pixels");
+        auto standard=pixelViewport(1280,768);
+        require(standard.scale==2&&standard.x==0&&standard.y==0,"Standard screen uses exact 2x pixels");
+        auto resized=pixelViewport(2010,1300);
+        require(resized.scale==3&&resized.x==45&&resized.y==74,"Resized window is integer-scaled and letterboxed");
+        require(resized.localX(45+143*3)==143&&resized.localY(74+211*3)==211,"Pointer transform reverses letterboxing exactly");
+        require(resized.localX(0)<0,"Margin clicks do not map onto the game board");
         cv::setNumThreads(2);cv::setRNGSeed(19);
         auto relics=LevelFactory::relics();
         auto restored=VisionEngine::restore(relics.observed);

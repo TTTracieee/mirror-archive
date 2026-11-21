@@ -3,6 +3,8 @@
 #include "GameModel.h"
 #include "LevelFactory.h"
 #include "VisionEngine.h"
+#include "PixelGrid.h"
+#include "PixelUI.h"
 #include <array>
 
 class ofApp : public ofBaseApp {
@@ -16,6 +18,7 @@ public:
     void mouseReleased(int x,int y,int button) override;
     void mouseScrolled(int x,int y,float sx,float sy) override;
     void keyPressed(int key) override;
+    void windowResized(int width,int height) override;
     void exit() override;
 private:
     enum class Screen { Home, Play, Result };
@@ -26,8 +29,8 @@ private:
     cv::Mat flow,previous,display;
     ofTexture sceneTexture,referenceTexture;
     ofImage hero;
-    ofTrueTypeFont titleFont,headingFont,bodyFont,smallFont,tinyFont,largeFont;
-    ofRectangle sceneRect{56,198,1035,644};
+    ofFbo canvas;
+    ofRectangle sceneRect{14,55,450,280};
     std::array<int,3> bestStars{};
     int level=0,tool=0,radius=72,motionTick=0;
     int qaStage=0,qaFrame=0;
@@ -36,7 +39,7 @@ private:
     glm::vec2 lastBrush{-1,-1};
     cv::Point lastPoint{450,280};
     float nextMotion=0,toastUntil=0;
-    std::string toastMessage,scanMessage="No region examined yet.";
+    std::string toastMessage,scanMessage;
     std::vector<std::string> notes;
     std::vector<ofImage> snapshots;
     std::string savePath;
@@ -59,7 +62,6 @@ private:
     void drawModal();
     void drawIcon(int icon,float x,float y,float size,ofColor color);
     void label(const std::string& text,float x,float y,ofColor color,int style=0);
-    void paragraph(const std::string& text,float x,float y,float maxWidth,ofColor color,int style=0);
     void panel(float x,float y,float w,float h,ofColor color,float radius=16);
     void button(const std::string& text,const ofRectangle& rect,bool active=false);
     glm::vec2 logical(float x,float y) const;
