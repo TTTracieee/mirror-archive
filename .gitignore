@@ -1,0 +1,10 @@
+.DS_Store
+.deps/
+build/
+com.apple.DeveloperTools/
+*.xcuserstate
+xcuserdata/
+bin/*.app/
+bin/data/qa-*.png
+qa-*.png
+*.log
