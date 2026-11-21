@@ -2,54 +2,41 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc.hpp>
 #include <algorithm>
-#include <array>
-#include <cmath>
 
 namespace mirror {
-struct Session {
-    float energy = 100.f;
-    int mistakes = 0;
-    int hints = 0;
-    int scans = 0;
-    bool paused = false;
-    bool hasMatch = false;
-    bool solved = false;
-    std::array<bool, 3> evidence{};
-    std::array<cv::Mat, 4> masks;
+// A single gesture is either an exploration stroke or a choice, never both.
+struct PointerGesture {
+    cv::Point2f start;
+    bool pressed=false,dragged=false;
+    void begin(cv::Point2f point){start=point;pressed=true;dragged=false;}
+    bool move(cv::Point2f point){
+        if(pressed&&cv::norm(point-start)>=4)dragged=true;
+        return pressed&&dragged;
+    }
+    bool release(cv::Point2f point){
+        move(point);const bool choose=pressed&&!dragged;cancel();return choose;
+    }
+    void cancel(){pressed=dragged=false;}
+};
 
-    explicit Session(cv::Size size = {900, 560}) { reset(size); }
-    void reset(cv::Size size) {
-        energy = 100; mistakes = hints = scans = 0;
-        paused = hasMatch = solved = false; evidence.fill(false);
-        for (auto& mask : masks) mask = cv::Mat::zeros(size, CV_8UC1);
+struct Campaign {
+    int chapter=0;
+    bool solved=false,complete=false;
+    void start(){chapter=0;solved=complete=false;}
+    void solve(){solved=true;}
+    bool advance(){
+        if(!solved||complete)return false;
+        if(chapter==2){complete=true;return true;}
+        ++chapter;solved=false;return true;
     }
-    bool spend(float amount) {
-        if (amount < 0 || energy + .0001f < amount) return false;
-        energy = std::max(0.f, energy - amount); return true;
-    }
-    // A layer bills only newly uncovered pixels; revisiting an area is free.
-    bool brush(int layer, cv::Point center, int radius, float fullImageCost) {
-        if (layer < 0 || layer >= int(masks.size()) || radius <= 0) return false;
-        auto& mask = masks[layer];
-        cv::Rect bounds(center.x-radius-2, center.y-radius-2, radius*2+5, radius*2+5);
-        bounds &= cv::Rect(0, 0, mask.cols, mask.rows);
-        if (bounds.empty()) return false;
-        cv::Mat stamp = cv::Mat::zeros(bounds.size(), CV_8UC1);
-        cv::circle(stamp, center - bounds.tl(), radius, cv::Scalar(255), -1, cv::LINE_AA);
-        cv::Mat proposed; cv::max(mask(bounds), stamp, proposed);
-        const float amount = float(cv::sum(proposed)[0] - cv::sum(mask(bounds))[0])
-            / (255.f * float(mask.total())) * fullImageCost;
-        if (!spend(amount)) return false;
-        proposed.copyTo(mask(bounds)); return true;
-    }
-    bool ready(int level) const {
-        if (level == 0) return evidence[1] && evidence[2];
-        if (level == 1) return hasMatch;
-        return evidence[1] || evidence[2];
-    }
-    int stars() const {
-        if (!solved) return 0;
-        return energy >= 50 && mistakes == 0 && hints == 0 ? 3 : (energy >= 20 && mistakes < 3 ? 2 : 1);
+};
+
+struct Session {
+    bool paused=false;
+    cv::Mat mask;
+    void reset(cv::Size size){mask=cv::Mat::zeros(size,CV_8UC1);paused=false;}
+    void brush(cv::Point center,int radius){
+        if(radius>0&&!mask.empty())cv::circle(mask,center,radius,cv::Scalar(255),-1,cv::LINE_8);
     }
 };
 } // namespace mirror

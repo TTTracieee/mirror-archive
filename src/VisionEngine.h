@@ -29,10 +29,28 @@ public:
 
     static cv::Mat restore(const cv::Mat& observed) {
         cv::Mat denoised, restored;
-        cv::medianBlur(observed, denoised, 5);
+        cv::medianBlur(observed, denoised, 3);
         // Inverse of the known exposure window, not an inverse of lost detail.
         denoised.convertTo(restored, CV_8UC3, 2.7, -175.0);
         return restored;
+    }
+
+    static cv::Mat repairLens(const cv::Mat& observed) {
+        auto clean=restore(observed);
+        cv::Mat hsv,selection,outline,view;
+        cv::cvtColor(clean,hsv,cv::COLOR_BGR2HSV);
+        cv::inRange(hsv,cv::Scalar(72,55,30),cv::Scalar(103,255,255),selection);
+        const auto kernel=cv::getStructuringElement(cv::MORPH_ELLIPSE,{3,3});
+        cv::morphologyEx(selection,selection,cv::MORPH_OPEN,kernel);
+        cv::morphologyEx(selection,selection,cv::MORPH_CLOSE,kernel);
+        cv::Canny(gray(clean),outline,45,100);
+        cv::dilate(selection,selection,kernel);
+        cv::bitwise_and(outline,selection,outline);
+        cv::dilate(outline,outline,cv::getStructuringElement(cv::MORPH_RECT,{2,2}));
+        clean.convertTo(view,-1,.88);
+        clean.copyTo(view,selection);
+        view.setTo(cv::Scalar(162,235,185),outline);
+        return view;
     }
 
     static cv::Mat chroma(const cv::Mat& observed) {
@@ -54,7 +72,7 @@ public:
     static cv::Mat edges(const cv::Mat& observed, bool denoise = true) {
         cv::Mat input = denoise ? restore(observed) : observed.clone(), edge;
         cv::Canny(gray(input), edge, 45, 100);
-        // Preserve one-pixel contours when the 900px observation is shown at 450px.
+        // Preserve contours when the observation is displayed at half size.
         cv::dilate(edge, edge, cv::getStructuringElement(cv::MORPH_RECT, {2, 2}));
         cv::Mat view(input.size(), CV_8UC3, cv::Scalar(39, 49, 39));
         view.setTo(cv::Scalar(187, 219, 211), edge);
@@ -99,9 +117,11 @@ public:
         auto homography = cv::findHomography(source, destination, cv::RANSAC, 3.0, inlierMask);
         if (homography.empty()) return result;
         result.inliers = cv::countNonZero(inlierMask);
+        int visibleInlier=0;
+        const int displayStride=std::max(1,(result.inliers+31)/32);
         for (size_t i = 0; i < destination.size(); ++i) {
-            if (inlierMask.at<uchar>(static_cast<int>(i)))
-                cv::circle(result.view, destination[i], 3, cv::Scalar(155, 238, 175), -1, cv::LINE_AA);
+            if (inlierMask.at<uchar>(static_cast<int>(i)) && visibleInlier++%displayStride==0)
+                cv::circle(result.view, destination[i], 2, cv::Scalar(155, 238, 175), -1, cv::LINE_8);
         }
         std::vector<cv::Point2f> corners = {{0,0}, {float(reference.cols-1),0},
             {float(reference.cols-1),float(reference.rows-1)}, {0,float(reference.rows-1)}};
@@ -132,6 +152,9 @@ public:
     }
 
     static cv::Mat flow(const cv::Mat& previous, const cv::Mat& current) {
+        // Identical frames carry no motion; avoid numerical drift on dense pixel textures.
+        if(cv::norm(previous,current,cv::NORM_INF)==0)
+            return cv::Mat::zeros(current.size(),CV_32FC2);
         cv::Mat result;
         cv::calcOpticalFlowFarneback(gray(previous), gray(current), result, .5, 3, 19, 3, 5, 1.2, 0);
         return result;
@@ -150,6 +173,52 @@ public:
             }
         }
         return view;
+    }
+
+    static cv::Mat motionLens(const cv::Mat& previous,const cv::Mat& observed,const cv::Mat& flow) {
+        cv::Mat delta,moving,view=observed.clone();
+        cv::absdiff(gray(previous),gray(observed),delta);
+        cv::threshold(delta,moving,9,255,cv::THRESH_BINARY);
+        cv::morphologyEx(moving,moving,cv::MORPH_CLOSE,
+                        cv::getStructuringElement(cv::MORPH_ELLIPSE,{3,3}));
+        cv::dilate(moving,moving,cv::getStructuringElement(cv::MORPH_ELLIPSE,{5,5}));
+        // Group measured motion into readable arrows; never consult sprite coordinates.
+        cv::morphologyEx(moving,moving,cv::MORPH_CLOSE,
+                        cv::getStructuringElement(cv::MORPH_ELLIPSE,{19,13}));
+        cv::Mat labels,stats,centers;
+        const int components=cv::connectedComponentsWithStats(moving,labels,stats,centers);
+        for(int id=1;id<components;++id){
+            if(stats.at<int>(id,cv::CC_STAT_AREA)<120)continue;
+            const cv::Rect bounds(stats.at<int>(id,cv::CC_STAT_LEFT),stats.at<int>(id,cv::CC_STAT_TOP),
+                                  stats.at<int>(id,cv::CC_STAT_WIDTH),stats.at<int>(id,cv::CC_STAT_HEIGHT));
+            cv::Point2f velocity(0,0);int samples=0;
+            for(int y=bounds.y;y<bounds.br().y;++y)for(int x=bounds.x;x<bounds.br().x;++x){
+                const auto sample=flow.at<cv::Point2f>(y,x);
+                if(labels.at<int>(y,x)==id&&cv::norm(sample)>.65){
+                    velocity+=sample;++samples;
+                }
+            }
+            if(samples<40)continue;
+            velocity*=1.f/samples;
+            if(cv::norm(velocity)<.65)continue;
+            const cv::Point2f center(float(centers.at<double>(id,0)),std::max(12,bounds.y-12));
+            const cv::Point start(center-velocity*9),end(center+velocity*9);
+            const cv::Scalar ink=velocity.x<-.6?cv::Scalar(95,224,255):cv::Scalar(227,205,118);
+            cv::arrowedLine(view,start,end,cv::Scalar(39,25,35),6,cv::LINE_8,0,.4);
+            cv::arrowedLine(view,start,end,ink,3,cv::LINE_8,0,.4);
+        }
+        return view;
+    }
+
+    static bool movingLeft(const cv::Mat& flow,cv::Point point) {
+        const auto region=cv::Rect(point.x-18,point.y-14,36,28)&cv::Rect(0,0,flow.cols,flow.rows);
+        if(region.empty())return false;
+        int left=0,moving=0;
+        for(int y=region.y;y<region.br().y;++y)for(int x=region.x;x<region.br().x;++x){
+            auto v=flow.at<cv::Point2f>(y,x);
+            if(cv::norm(v)>.65){++moving;if(v.x<-.6)++left;}
+        }
+        return moving>40&&left>moving*.65;
     }
 
     static cv::Mat blend(const cv::Mat& observed, const cv::Mat& processed, const cv::Mat& mask) {

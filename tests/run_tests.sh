@@ -12,4 +12,4 @@ xcrun clang++ -std=c++17 -O2 -arch "$(uname -m)" -I"$opencv/Headers" -I"$project
   "$of_root/libs/FreeImage/lib/macos/FreeImage.xcframework/macos-arm64_x86_64/FreeImage.a" \
   -framework Accelerate -framework Cocoa -framework AVFoundation -framework CoreMedia \
   -framework CoreVideo -framework OpenCL -lz -o "$test_dir/vision_tests"
-"$test_dir/vision_tests"
+"$test_dir/vision_tests" "$project_dir/bin/data/art"
