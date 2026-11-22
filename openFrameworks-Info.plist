@@ -24,5 +24,7 @@
 	<string>${CURRENT_PROJECT_VERSION}</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Use your hand to turn the archive lock. Camera frames stay on this computer.</string>
 </dict>
 </plist>

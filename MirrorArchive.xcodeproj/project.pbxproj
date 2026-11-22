@@ -118,7 +118,8 @@
       "buildActionMask": "2147483647",
       "files": [
         "E4B69E200A3A1BDC003C02F2",
-        "E4B69E210A3A1BDC003C02F2"
+        "E4B69E210A3A1BDC003C02F2",
+        "CA0000000000000000000002"
       ],
       "isa": "PBXSourcesBuildPhase",
       "runOnlyForDeploymentPostprocessing": "0"
@@ -218,7 +219,8 @@
         "MA0000000000000000000001",
         "MA0000000000000000000002",
         "MA0000000000000000000100",
-        "MA0000000000000000000101"
+        "MA0000000000000000000101",
+        "CA0000000000000000000001"
       ],
       "isa": "PBXGroup",
       "path": "src",
@@ -254,6 +256,17 @@
     },
     "E4B69E210A3A1BDC003C02F2": {
       "fileRef": "E4B69E1E0A3A1BDC003C02F2",
+      "isa": "PBXBuildFile"
+    },
+    "CA0000000000000000000001": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.objcpp",
+      "name": "CameraAccess.mm",
+      "path": "src/CameraAccess.mm",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "CA0000000000000000000002": {
+      "fileRef": "CA0000000000000000000001",
       "isa": "PBXBuildFile"
     },
     "E4C2427710CC5ABF004149E2": {

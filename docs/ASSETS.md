@@ -21,7 +21,7 @@ Final prompt:
 
 ## Dependencies
 
-openFrameworks and OpenCV are external build dependencies. Their source archives, binaries and licenses remain in the locally installed openFrameworks distribution. No analytics, network requests, camera or microphone access is used at runtime.
+openFrameworks and OpenCV are external build dependencies. Their source archives, binaries and licenses remain in the locally installed openFrameworks distribution. No analytics, runtime network requests or microphone access is used. The current game optionally uses a local webcam in chapter two.
 
 ## Connected story scenes (2026-11-22)
 
@@ -58,3 +58,23 @@ Asset: `bin/data/art/moth.png`. Transparent background: true.
 Full prompt:
 
 > Use case: stylized-concept. Game sprite asset, a single beautifully detailed small golden-ivory archive moth on a genuinely transparent background. Front/top view with two wings spread symmetrically left and right, wings mostly horizontal, delicate scalloped edges, amber eye spots and dark cocoa vein patterns, a little teal thorax, two antennae. Original 16-bit pixel art matching a cozy magical greenhouse mystery game. Deliberate crisp square pixel clusters; no smooth antialiasing, no painterly blur. Rich, stable non-repeating wing texture that will remain readable at approximately 64 by 44 pixels in the game. Centered single moth filling most of the canvas with a little transparent padding. No glow, shadow outside the body, background, lettering, logo, frame, sprite sheet, or other objects.
+
+
+## Town photograph and tonton (current three-chapter story)
+
+- Asset: `bin/data/art/town-photo.png`; generated 2026-11-22 using the built-in imagegen tool (`builtin`), new image, no reference inputs. Original generation retained at the tool destination; project has its own copy.
+- Runtime nearest-neighbor sampling and overlapping crops in `ArchiveGame.h`; the exhibit is computed from registered scans.
+- `src/Tonton.h` is an original code-native pixel sprite with separate limbs and expression/prop states. No external character sprites or fonts are used.
+- Earlier storeroom/maproom/greenhouse/moth assets remain as regression samples and are not in the current story.
+
+Final imagegen prompt:
+
+> Use case: illustration-story. Asset type: central photograph for a cozy pixel art archive restoration game, landscape 3:2. A charming old town's very first group photograph, 12 distinct villagers and a tiny round pink pig archive assistant together in front of a detailed warm timber town hall, flower boxes, brick paths, bunting, old camera on tripod at left, bicycle at right, leafy trees. Everyone poses happily. Rich crisp authentic 16-bit pixel art with visible square pixels, limited warm autumn palette of honey gold, terracotta, moss green, dusty teal, pink. Fine distinctive details distributed throughout entire image including corners to support feature matching: varied flowers cobblestones building shingles windows clothes. Flat front facing composition, no perspective frame, no border, no text or letters, no watermark, no blur, no gradients. Whole image is the photo content. Charming storybook farming-game atmosphere. High quality detailed hand crafted pixel scene.
+
+## Hand tracking
+
+- `bin/data/hand/hand_landmarker.task`: official Google MediaPipe float16 model, version 1.
+- Download: https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task
+- Model documentation: https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker
+- MediaPipe SDK: https://github.com/google-ai-edge/mediapipe (Apache-2.0); upstream license is retained in `bin/data/hand/LICENSE-MediaPipe.txt`, and package notices remain in the Python environment. The model is distributed with the official MediaPipe solution; see the linked model documentation and upstream license.
+- Python dependency pins are in `requirements-camera.txt`; installation environment is excluded from Git. No camera images are included in this repository.

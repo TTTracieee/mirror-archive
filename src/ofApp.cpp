@@ -3,350 +3,390 @@
 namespace {
 using namespace pixel;
 constexpr int W=mirror::canvasWidth,H=mirror::canvasHeight;
-const std::array<std::string,3> titles={"THE LOST KEY","THE KEEPER'S MAP","THE LAST FILM"};
-const std::array<std::string,3> discoveries={"KEY RESTORED","MAP IDENTIFIED","FILM REPAIRED"};
-const std::array<std::string,3> story={
-    "THE KEY OPENS THE KEEPER'S STUDY.",
-    "HIS MAP LEADS TO THE GREENHOUSE FILM.",
-    "THE KEEPER'S LAST LIGHT IS FOUND."
-};
-const ofRectangle startButton{244,296,152,40},homeButton{602,9,28,26};
-const ofRectangle hintButton{515,302,104,29},pauseButton{515,263,104,29};
+const ofRectangle startButton{244,300,152,40},homeButton{601,9,28,26};
+const ofRectangle nextButton{398,332,84,35},cameraButton{182,329,148,35};
+const ofRectangle recordButton{30,329,132,35},rotateButton{362,332,120,35};
+const ofRectangle recordArea{42,61,428,254};
+const std::array<std::string,3> titles{"THE RAIN-SOAKED RECORD","THE PHOTO CABINET","THE FIRST TOWN PHOTO"};
+const std::array<std::string,3> hints{"Save our\nfirst town\nphoto!\n\nClean up\nthe code.","Pinch and\ndrag.\n\nLinked\nwheels\nturn too!","Match the\noverlap.\n\nTurn a\nphoto if\nneeded."};
+const std::array<std::string,3> cheers{"Found it!\n\nLet's open\nthe box!","It's here!\n\nLet's fix\nthe photo!","We did it!\n\nOur town,\ntogether."};
+void rect(int x,int y,int w,int h,ofColor c){ofSetColor(c);ofDrawRectangle(x,y,w,h);}
 }
 
 void ofApp::setup(){
     ofSetFrameRate(60);ofSetVerticalSync(true);ofEnableAlphaBlending();ofSetEscapeQuitsApp(false);
-    cv::setNumThreads(2);ofDisableAntiAliasing();ofDisableSmoothing();
-    ofSetWindowTitle("Mirror Archive");
+    cv::setNumThreads(2);ofDisableAntiAliasing();ofDisableSmoothing();ofSetWindowTitle("Mirror Archive");
     const auto resources=ofFilePath::getCurrentExeDir()+"../Resources/data/";
     if(ofDirectory::doesDirectoryExist(resources))ofSetDataPathRoot(resources);
-    ofFbo::Settings settings;settings.width=W;settings.height=H;
-    settings.internalformat=GL_RGBA;settings.textureTarget=GL_TEXTURE_2D;settings.numSamples=0;
-    canvas.allocate(settings);canvas.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
+    ofFbo::Settings settings;settings.width=W;settings.height=H;settings.internalformat=GL_RGBA;
+    settings.textureTarget=GL_TEXTURE_2D;settings.numSamples=0;canvas.allocate(settings);
+    canvas.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
     try{
-        factory.load(ofToDataPath("art",true));
-        if(!hero.load("art/pixel-cottage.png")||!moth.load("art/moth.png"))
-            throw std::runtime_error("Missing menu or moth art");
+        if(!hero.load("art/pixel-cottage.png"))throw std::runtime_error("Missing workshop");
         hero.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
-        moth.getTexture().setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
-    }catch(const std::exception& error){
-        ofLogError()<<error.what();errorMessage="ART FILES MISSING. PLEASE REBUILD.";screen=Screen::Error;
+        auto photo=cv::imread(ofToDataPath("art/town-photo.png",true));
+        if(photo.empty())throw std::runtime_error("Missing town photograph");
+        makeRecord(photo);puzzle.load(photo);
+        for(int i=0;i<5;++i)upload(puzzle.pieces[i].image,photoTextures[i]);
+    }catch(const std::exception& e){
+        ofLogError()<<e.what();errorMessage="MISSING ART. PLEASE REBUILD.";screen=Screen::Error;
         if(qaMode)ofExit(1);
     }
 }
-
-void ofApp::startStory(){campaign.start();loadChapter();}
-void ofApp::loadChapter(){
-    screen=Screen::Play;gesture.cancel();lastBrush={-1,-1};motionTick=0;
-    session.reset({mirror::LevelFactory::width,mirror::LevelFactory::height});
-    matchPolygon.clear();toastUntil=hintUntil=nextScan=0;
-    if(campaign.chapter==0){
-        data=factory.archive();processed=mirror::VisionEngine::repairLens(data.observed);
-        upload(data.reference,referenceTexture);
-    }else if(campaign.chapter==1){
-        data=factory.study();processed=mirror::VisionEngine::keypoints(data.observed);
-        upload(data.reference,referenceTexture);
-    }else{
-        data={};data.observed=factory.motionFrame(0);advanceFilm();
-    }
-    nextMotion=ofGetElapsedTimef()+1.f/24;dirty=true;refreshTexture();
-    if(campaign.chapter==0)notify("RESTORE THE KEEPER'S LOST RECORD.");
+void ofApp::exit(){hand.stop();}
+void ofApp::makeRecord(const cv::Mat& photo){
+    cleanRecord=cv::Mat(380,640,CV_8UC3,cv::Scalar(177,218,239));
+    auto box=[&](int x,int y,int w,int h,cv::Scalar color){cv::rectangle(cleanRecord,{x,y,w,h},color,cv::FILLED);};
+    auto inkText=[&](const std::string& value,int x,int y,int size,cv::Scalar color){
+        for(char c:value){auto rows=pixel::glyph(c);for(int r=0;r<7;++r)for(int bit=0;bit<5;++bit)
+            if(rows[r]&(1<<(4-bit)))box(x+bit*size,y+r*size,size,size,color);x+=6*size;}
+    };
+    const cv::Scalar inkColor(49,70,78),faint(118,151,172);
+    box(12,12,616,356,{103,151,181});box(16,16,608,348,{177,218,239});
+    inkText("TOWN ARCHIVE",42,37,5,inkColor);box(40,85,560,3,faint);
+    cv::Mat thumb;cv::resize(photo,thumb,{230,154},0,0,cv::INTER_NEAREST);
+    box(38,107,242,166,inkColor);thumb.copyTo(cleanRecord(cv::Rect(44,113,230,154)));
+    inkText("FIRST",315,116,3,inkColor);inkText("TOWN PHOTO",315,148,3,inkColor);
+    inkText("CABINET CODE",315,206,3,inkColor);
+    inkText("314",326,248,9,inkColor);
+    box(40,299,245,2,faint);box(40,317,209,2,faint);box(40,335,180,2,faint);
+    box(537,312,53,28,{110,135,161});box(542,317,43,18,{156,183,201});
+    // Mild blur remains recoverable; median filtering removes impulsive rain damage.
+    cv::Mat faded;cv::GaussianBlur(cleanRecord,faded,{3,3},.65);
+    faded.convertTo(damagedRecord,CV_8U,.32,87);
+    cv::RNG rng(4187);
+    for(int i=0;i<640*380/4;++i){int x=rng.uniform(0,640),y=rng.uniform(0,380);
+        const uchar value=rng.uniform(0,2)?230:24;damagedRecord.at<cv::Vec3b>(y,x)={value,value,value};}
+    refreshRecord();
 }
-void ofApp::advanceStory(){
-    if(!campaign.advance())return;
-    if(campaign.complete){screen=Screen::Complete;return;}
-    loadChapter();
-}
-void ofApp::advanceFilm(){
-    previous=data.observed;data.observed=factory.motionFrame(++motionTick);
-    flow=mirror::VisionEngine::flow(previous,data.observed);
-    processed=mirror::VisionEngine::motionLens(previous,data.observed,flow);
-    data.answer=mirror::LevelFactory::motionAnswer(motionTick);dirty=true;
-}
-void ofApp::update(){
-    const float now=ofGetElapsedTimef();
-    if(screen==Screen::Transition&&now>=transitionAt)advanceStory();
-    if(screen==Screen::Play){
-        if(campaign.chapter==2&&!session.paused&&now>=nextMotion){
-            nextMotion=now+1.f/24;advanceFilm();
-        }
-        if(dirty)refreshTexture();
-    }
-    if(qaMode)runQA();
-}
-
 void ofApp::upload(const cv::Mat& image,ofTexture& texture){
     cv::Mat rgb;cv::cvtColor(image,rgb,cv::COLOR_BGR2RGB);
     ofPixels pixels;pixels.setFromPixels(rgb.data,rgb.cols,rgb.rows,OF_PIXELS_RGB);
     texture.loadData(pixels);texture.setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);
 }
-void ofApp::refreshTexture(){
-    display=mirror::VisionEngine::blend(data.observed,processed,session.mask);
-    upload(display,sceneTexture);dirty=false;
+void ofApp::refreshRecord(){repairedRecord=restoration.apply(damagedRecord);upload(repairedRecord,recordTexture);}
+void ofApp::startStory(){
+    hand.stop();cameraPending=false;cancelDrag();campaign.start();restoration={};lock={};recordOpen=false;exhibitReady=false;
+    refreshRecord();
+    const std::array<cv::Point2f,5> starts{{{242,178},{112,122},{393,117},{102,226},{398,226}}};
+    const std::array<float,5> angles{0,180,0,90,270};
+    for(int i=0;i<5;++i){auto& piece=puzzle.pieces[i];piece.center=starts[i];piece.angle=angles[i];piece.scale=.5;
+        piece.fixed=i==0;piece.pose=piece.currentPose();}
+    puzzle.sparkle.clear();order={0,1,2,3,4};selected=-1;screen=Screen::Play;hintUntil=ofGetElapsedTimef()+8;
 }
-void ofApp::notify(const std::string& message){toastMessage=message;toastUntil=ofGetElapsedTimef()+2.5f;}
+void ofApp::solveChapter(){
+    cancelDrag();hand.stop();cameraPending=false;handDown=false;campaign.solve();screen=Screen::Transition;
+    transitionAt=ofGetElapsedTimef()+(qaMode?1.5f:3.2f);
+    if(campaign.chapter==2){upload(puzzle.composite(),exhibitTexture);exhibitReady=true;}
+}
+void ofApp::advanceStory(){
+    if(!campaign.advance())return;
+    screen=campaign.complete?Screen::Complete:Screen::Play;hintUntil=ofGetElapsedTimef()+7;
+}
+void ofApp::update(){
+    const float now=ofGetElapsedTimef();
+    if(screen==Screen::Transition&&now>=transitionAt)advanceStory();
+    if(cameraPending&&screen==Screen::Play&&campaign.chapter==1){
+        const auto permission=mirror::cameraAccess();
+        if(permission==mirror::CameraAccess::Allowed){
+            cameraPending=false;hand.start(ofFilePath::getCurrentExeDir(),ofToDataPath("hand",true));
+            cameraStartedAt=lastHandAt=now;hintUntil=now+7;
+        }else if(permission==mirror::CameraAccess::Blocked){cameraPending=false;hand.error="CAMERA BLOCKED";}
+    }
+    if(screen==Screen::Play&&campaign.chapter==1&&hand.running){
+        hand.poll([&](){
+            lastHandAt=now;handCursor={hand.x*W,hand.y*H};
+            if(!hand.visible){if(handDown)cancelDrag();handDown=false;return;}
+            if(hand.pinched&&!handDown)pointerDown(handCursor,true);
+            else if(hand.pinched&&handDown)pointerMove(handCursor);
+            else if(!hand.pinched&&handDown)pointerUp(handCursor);
+            handDown=hand.pinched;
+        });
+        if(handDown&&now-lastHandAt>.7f){cancelDrag();handDown=false;hand.visible=false;}
+        if(!hand.ready&&now-cameraStartedAt>25){hand.stop();hand.error="CAMERA UNAVAILABLE";}
+    }
+    if(qaMode)runQA();
+}
 glm::vec2 ofApp::logical(float x,float y)const{
-    const auto view=mirror::pixelViewport(ofGetWidth(),ofGetHeight());
-    return {view.localX(x),view.localY(y)};
+    const auto view=mirror::pixelViewport(ofGetWidth(),ofGetHeight());return {view.localX(x),view.localY(y)};
 }
-bool ofApp::over(const ofRectangle& rect)const{return rect.inside(logical(ofGetMouseX(),ofGetMouseY()));}
-cv::Point ofApp::scenePoint(glm::vec2 point)const{
-    return {std::clamp(int((point.x-sceneRect.x)*2),0,mirror::LevelFactory::width-1),
-            std::clamp(int((point.y-sceneRect.y)*2),0,mirror::LevelFactory::height-1)};
+bool ofApp::over(const ofRectangle& r)const{return r.inside(logical(ofGetMouseX(),ofGetMouseY()));}
+void ofApp::centered(const std::string& value,int x,int y,ofColor c,int s){pixel::text(value,x-pixel::textWidth(value,s)/2,y,c,s);}
+void ofApp::button(const std::string& value,const ofRectangle& r,bool active,int scale){
+    pixel::panel(r.x,r.y,r.width,r.height,active?pixel::gold:(over(r)?pixel::light:pixel::paper));
+    centered(value,r.getCenter().x,r.y+(r.height-7*scale)/2,pixel::ink,scale);
 }
-glm::vec2 ofApp::boardPoint(cv::Point point)const{return {sceneRect.x+point.x/2.f,sceneRect.y+point.y/2.f};}
-
-void ofApp::brushAt(glm::vec2 position){
-    if(!sceneRect.inside(position))return;
-    auto point=scenePoint(position);glm::vec2 current(point.x,point.y);
-    if(lastBrush.x<0)lastBrush=current;
-    const int steps=std::max(1,int(glm::distance(lastBrush,current)/20));
-    for(int i=1;i<=steps;++i){
-        auto pointOnStroke=glm::mix(lastBrush,current,float(i)/steps);
-        session.brush({int(pointOnStroke.x),int(pointOnStroke.y)},82);
-    }
-    lastBrush=current;dirty=true;
-    if(campaign.chapter==1&&ofGetElapsedTimef()>=nextScan){
-        scanAt(point);nextScan=ofGetElapsedTimef()+.4f;
-    }
-}
-mirror::MatchEvidence ofApp::scanAt(cv::Point point){
-    auto result=mirror::VisionEngine::match(data.reference,data.observed,
-                                           {point.x-150,point.y-140,300,280});
-    if(result.verified){
-        matchPolygon=result.polygon;
-        processed=result.view;dirty=true;
-        const auto region=cv::Rect(point.x-150,point.y-140,300,280)&cv::Rect(0,0,960,600);
-        session.mask(region).setTo(255);
-    }
-    return result;
-}
-void ofApp::claimAt(cv::Point point){
-    bool correct=false;
-    if(campaign.chapter==0)correct=data.answer.contains(point);
-    else if(campaign.chapter==1){
-        const auto match=scanAt(point);
-        correct=match.verified&&cv::pointPolygonTest(match.polygon,point,false)>=0;
-    }else correct=data.answer.contains(point)&&mirror::VisionEngine::movingLeft(flow,point);
-    if(!correct){notify("NOT THIS ONE");return;}
-    campaign.solve();gesture.cancel();hintUntil=toastUntil=0;screen=Screen::Transition;
-    transitionAt=ofGetElapsedTimef()+(qaMode?1.1f:3.6f);
-    if(campaign.chapter==0)upload(processed,sceneTexture);
-    else upload(data.observed,sceneTexture);
-}
-
-void ofApp::centered(const std::string& text,int centerX,int y,ofColor color,int scale){
-    pixel::text(text,centerX-pixel::textWidth(text,scale)/2,y,color,scale);
-}
-void ofApp::button(const std::string& text,const ofRectangle& rect,bool active,int scale){
-    pixel::panel(rect.x,rect.y,rect.width,rect.height,active?green:over(rect)?light:paper);
-    centered(text,rect.getCenter().x,rect.y+(rect.height-7*scale)/2,active?light:ink,scale);
-}
-void ofApp::draw(){
-    ofBackground(shadow);
-    canvas.begin();ofClear(shadow);ofPushStyle();ofFill();ofDisableAntiAliasing();ofDisableSmoothing();
-    if(screen==Screen::Home)drawHome();
-    else if(screen==Screen::Complete)drawComplete();
-    else if(screen==Screen::Error)centered(errorMessage,320,180,light);
-    else{
-        drawPlay();
-        if(screen==Screen::Transition)drawTransition();
-        else if(ofGetElapsedTimef()<toastUntil){
-            const int width=pixel::textWidth(toastMessage)+20;
-            pixel::panel(252-width/2,310,width,25,paper);
-            centered(toastMessage,252,319,ink);
-        }
-    }
-    ofPopStyle();canvas.end();
-    const auto view=mirror::pixelViewport(ofGetWidth(),ofGetHeight());
-    ofSetColor(255);canvas.draw(view.x,view.y,W*view.scale,H*view.scale);
+void ofApp::drawDesk(){
+    ofSetColor(255);hero.draw(0,0,W,H);rect(0,0,W,H,ofColor(39,25,35,150));
+    pixel::panel(9,45,484,278,ofColor(111,70,51));
+    for(int y=54;y<317;y+=33){rect(15,y,472,2,ofColor(139,88,57));rect(15,y+2,472,1,ofColor(76,49,44));}
+    for(int y=66;y<317;y+=66)for(int x=30+(y%5)*30;x<480;x+=130){rect(x,y,28,1,ofColor(159,100,62));rect(x+12,y+5,21,1,ofColor(87,55,43));}
 }
 void ofApp::drawHome(){
-    ofSetColor(255);hero.draw(0,0,W,H);
-    pixel::panel(171,36,298,74,wood);
-    centered("MIRROR ARCHIVE",320,53,shadow,3);
-    centered("MIRROR ARCHIVE",318,51,light,3);
-    ofSetColor(gold);ofDrawRectangle(246,88,148,2);
+    ofSetColor(255);hero.draw(0,0,W,H);rect(0,0,W,H,ofColor(32,23,33,32));
+    pixel::panel(140,35,360,69,ofColor(70,52,47));
+    centered("MIRROR ARCHIVE",320,52,pixel::light,3);
+    pixel::tonton(320,242,4,ofGetElapsedTimef());
     button("START",startButton,true,2);
 }
-void ofApp::drawPlay(){
-    ofSetColor(edge);ofDrawRectangle(0,0,W,41);
-    pixel::sprite(5,22,20,1,gold);
-    pixel::text("ARCHIVE RESTORER",38,9,light);
-    pixel::text(titles[campaign.chapter],38,24,gold);
+void ofApp::drawRecord(){
+    pixel::panel(36,55,440,266,pixel::paper);
+    ofSetColor(255);recordTexture.draw(recordArea);
+    for(int i=0;i<2;++i){
+        int x=i==0?30:218;const float value=i==0?restoration.clean:restoration.clarity;
+        pixel::text(i==0?"CLEAN":"CLEAR",x,332,pixel::light,2);
+        rect(x,359,146,5,pixel::ink);rect(x+1,360,int(144*value),3,pixel::gold);
+        pixel::panel(x+int(144*value)-5,352,13,18,pixel::light);
+    }
+    button("KEEP",nextButton,true,2);
+}
+void ofApp::drawLock(){
+    // Brass cabinet: the linked gear axles make the coupling visible.
+    pixel::panel(44,64,414,243,ofColor(126,72,43));
+    pixel::panel(56,76,390,219,ofColor(168,106,57));
+    for(int x=65;x<438;x+=48){rect(x,82,2,207,ofColor(132,78,45));rect(x+3,82,1,207,ofColor(193,129,68));}
+    pixel::panel(139,85,222,33,pixel::paper);centered("PHOTO ARCHIVE",250,95,pixel::ink,2);
+    pixel::panel(94,140,314,110,ofColor(65,48,42));
+    for(int i=0;i<2;++i){
+        const int x=192+i*92;
+        rect(x-6,188,29,7,pixel::gold);
+        for(int k=0;k<4;++k){rect(x-4+k*7,184,4,15,pixel::wood);rect(x-3+k*7,186,2,10,pixel::gold);}
+        pixel::text(">",x+4,263,pixel::light,2);
+    }
     for(int i=0;i<3;++i){
-        const int x=506+i*29;
-        if(i<2){ofSetColor(wood);ofDrawRectangle(x+14,20,15,2);}
-        pixel::panel(x,11,23,21,i<=campaign.chapter?green:wood);
-        if(i<campaign.chapter)pixel::sprite(9,x+11,21,1,light);
-        else centered(ofToString(i+1),x+11,18,light);
+        const int x=111+i*92;
+        pixel::panel(x,151,72,87,wheel==i?pixel::gold:pixel::paper);
+        centered(std::to_string((lock.digits[i]+9)%10),x+36,158,pixel::wood,1);
+        centered(std::to_string(lock.digits[i]),x+36,179,pixel::ink,4);
+        centered(std::to_string((lock.digits[i]+1)%10),x+36,222,pixel::wood,1);
+        rect(x+8,173,56,1,pixel::wood);rect(x+8,216,56,1,pixel::wood);
     }
-    button("",homeButton);pixel::sprite(6,616,21,1,green);
-    pixel::panel(6,42,492,312,wood);
-    ofSetColor(255);sceneTexture.draw(sceneRect);
-    pixel::panel(505,42,124,312,paper);
-    centered(campaign.chapter==1?"MATCH THIS":"FIND",567,64,ink);
-    ofSetColor(edge);ofDrawRectangle(517,87,100,98);
-    ofSetColor(light);ofDrawRectangle(519,89,96,94);
-    ofSetColor(255);
-    if(campaign.chapter==0)referenceTexture.draw(520,104,94,63);
-    else if(campaign.chapter==1)referenceTexture.draw(520,95,94,81);
-    else moth.draw(520,106,94,64);
-    ofSetColor(wood);ofDrawRectangle(562,84,10,5);
-    if(campaign.chapter==0){
-        centered("THE TEAL KEY",567,200,ink);
-        pixel::sprite(1,567,234,1,teal);
-    }else if(campaign.chapter==1){
-        centered("LIGHTHOUSE SEAL",567,200,ink);
-        if(!matchPolygon.empty()){pixel::sprite(9,567,231,2,green);centered("MATCH FOUND",567,255,green);}
-    }else{
-        centered("FLYING LEFT",567,200,ink);
-        pixel::sprite(4,567,232,2,gold);
-        button(session.paused?"RESUME":"PAUSE",pauseButton,session.paused);
-    }
-    button("HINT",hintButton);
-    centered("DRAG TO RESTORE  /  CLICK TO CHOOSE",252,365,light);
-    centered(ofToString(campaign.chapter+1)+" / 3",567,365,paper);
-
-    if(screen!=Screen::Play)return;
-    if(ofGetElapsedTimef()<hintUntil){
-        const auto center=boardPoint((data.answer.tl()+data.answer.br())/2);
-        const int x=std::clamp(int(center.x)-60,14,370),y=std::clamp(int(center.y)-42,50,262);
-        ofSetColor(gold);
-        for(int dx:{0,116})for(int dy:{0,80}){
-            ofDrawRectangle(x+dx,y+dy,4,4);
-            ofDrawRectangle(x+(dx==0?0:108),y+dy,12,2);
-            ofDrawRectangle(x+dx,y+(dy==0?0:72),2,12);
+    for(auto p:std::vector<glm::ivec2>{{69,87},{430,87},{69,282},{430,282}}){rect(p.x-3,p.y-3,6,6,pixel::edge);rect(p.x-2,p.y-2,4,4,pixel::gold);}
+    button("RECORD",recordButton,false,2);
+    button(hand.running||cameraPending?"CAM OFF":"CAMERA",cameraButton,hand.running||cameraPending,2);
+    if(cameraPending)centered("ALLOW CAMERA",407,343,pixel::light,1);
+    if(hand.running){
+        const std::string status=hand.visible?"PINCH + DRAG":(hand.ready?"SHOW HAND":"STARTING...");
+        centered(status,407,343,pixel::light,1);
+        // A live landmark silhouette gives feedback without exposing a camera feed.
+        if(hand.visible){
+            const std::array<std::pair<int,int>,20> edges{{{0,1},{1,2},{2,3},{3,4},{0,5},{5,6},{6,7},{7,8},{5,9},{9,10},{10,11},{11,12},{9,13},{13,14},{14,15},{15,16},{13,17},{17,18},{18,19},{19,20}}};
+            ofSetColor(pixel::light);ofSetLineWidth(1);
+            for(auto [a,b]:edges)ofDrawLine(int(365+hand.joints[a][0]*70),int(251+hand.joints[a][1]*45),int(365+hand.joints[b][0]*70),int(251+hand.joints[b][1]*45));
         }
+    }else if(!cameraPending&&!hand.error.empty())centered(hand.error,404,341,pixel::light,1);
+    if(recordOpen){
+        rect(16,47,475,275,ofColor(39,25,35,180));pixel::panel(35,58,438,261,pixel::paper);
+        ofSetColor(255);recordTexture.draw(recordArea);
+        button("REPAIR",{182,329,148,35},true,2);
     }
-    auto mouse=logical(ofGetMouseX(),ofGetMouseY());
-    if(sceneRect.inside(mouse)){
-        const int x=int(mouse.x),y=int(mouse.y);
-        ofSetColor(light);
-        const auto dot=[&](int px,int py){if(sceneRect.inside(px,py))ofDrawRectangle(px,py,1,1);};
-        if(gesture.dragged){
-            for(int yy=-41;yy<=41;++yy){
-                int xx=int(std::sqrt(float(41*41-yy*yy)));dot(x-xx,y+yy);dot(x+xx,y+yy);
-            }
-        }else for(int i=-4;i<=4;++i){dot(x+i,y);dot(x,y+i);}
+}
+void ofApp::drawCompanion(int happy){
+    const float now=ofGetElapsedTimef();
+    if(happy||now<hintUntil){
+        pixel::panel(499,62,133,154,pixel::paper);
+        auto line=happy?cheers[campaign.chapter]:hints[campaign.chapter];
+        if(!happy&&campaign.chapter==1&&!hand.running)line="Drag a\nwheel.\n\nNeighbors\nturn too!";
+        pixel::text(line,508,77,pixel::ink,2);
+        rect(555,216,11,5,pixel::ink);rect(557,213,7,6,pixel::paper);
+    }
+    pixel::tonton(565,260,3,now,happy);
+    centered("tonton",565,320,pixel::light,2);
+    if(!happy)button("?",{610,333,22,24},false,2);
+}
+void ofApp::drawPlay(){
+    drawDesk();pixel::panel(9,5,584,35,pixel::paper);
+    pixel::text(std::to_string(campaign.chapter+1)+"/3",21,17,pixel::wood,1);
+    centered(titles[campaign.chapter],315,16,pixel::ink,2);
+    button("<",homeButton,false,2);
+    if(campaign.chapter==0)drawRecord();
+    else if(campaign.chapter==1)drawLock();
+    else {
+        // Light table first, registered scans next, loose photos last.
+        pixel::panel(14,50,474,272,ofColor(196,206,179));
+        for(int y=57;y<317;y+=16)for(int x=21;x<482;x+=16)rect(x,y,1,1,ofColor(158,179,157));
+        if(exhibitReady){ofSetColor(255);exhibitTexture.draw(0,0);}
+        else for(const auto& p:puzzle.pieces)if(p.fixed){
+            int i=int(&p-&puzzle.pieces[0]);ofPushMatrix();ofTranslate(std::round(p.center.x),std::round(p.center.y));ofRotateDeg(p.angle);
+            ofSetColor(255);photoTextures[i].draw(-p.image.cols*p.scale/2,-p.image.rows*p.scale/2,p.image.cols*p.scale,p.image.rows*p.scale);ofPopMatrix();
+        }
+        // Loose scans draw above the already registered photo.
+        for(int index:order){const auto& p=puzzle.pieces[index];if(p.fixed)continue;
+            ofPushMatrix();ofTranslate(std::round(p.center.x),std::round(p.center.y));ofRotateDeg(p.angle);
+            int w=int(p.image.cols*p.scale),h=int(p.image.rows*p.scale);
+            rect(-w/2-1,-h/2,w+8,h+8,ofColor(39,25,35,90));
+            rect(-w/2-4,-h/2-4,w+8,h+8,selected==index?pixel::gold:pixel::paper);
+            ofSetColor(255);photoTextures[index].draw(-w/2,-h/2,w,h);ofPopMatrix();
+        }
+        centered(std::to_string(puzzle.count())+"/5",74,344,pixel::light,2);
+        button("TURN",rotateButton,selected>0,2);
+        if(ofGetElapsedTimef()<sparkleUntil)for(auto p:puzzle.sparkle)pixel::sprite(2,int(p.x),int(p.y),1,pixel::gold);
+    }
+    drawCompanion();
+    if(hand.running&&hand.visible&&!recordOpen){
+        pixel::sprite(hand.pinched?9:0,int(handCursor.x),int(handCursor.y),1,hand.pinched?pixel::gold:pixel::light);
     }
 }
 void ofApp::drawTransition(){
-    ofSetColor(shadow,130);ofDrawRectangle(0,0,W,H);
-    pixel::panel(148,125,344,134,paper);
-    pixel::sprite(9,320,145,2,green);
-    centered(discoveries[campaign.chapter],320,172,ink,2);
-    centered(story[campaign.chapter],320,208,ink);
-    const float remaining=std::clamp((transitionAt-ofGetElapsedTimef())/(qaMode?1.1f:3.6f),0.f,1.f);
-    ofSetColor(wood);ofDrawRectangle(176,237,288,3);
-    ofSetColor(green);ofDrawRectangle(176,237,int(288*(1-remaining)),3);
+    drawPlay();
+    rect(17,52,470,267,ofColor(39,25,35,185));
+    pixel::panel(70,101,368,168,pixel::paper);
+    if(campaign.chapter==0){
+        pixel::sprite(9,250,145,3,pixel::green);centered("RECORD SAVED",254,207,pixel::ink,2);
+    }else if(campaign.chapter==1){
+        for(int i=0;i<3;++i){pixel::panel(145+i*40,124+i*10,126,88,pixel::light);
+            ofSetColor(255);photoTextures[i+1].draw(151+i*40,130+i*10,114,76);}
+        centered("PHOTO FOUND",254,237,pixel::ink,2);
+    }else{
+        centered("READY TO EXHIBIT",254,210,pixel::ink,2);
+        pixel::sprite(9,250,149,3,pixel::green);
+    }
+    rect(495,45,145,339,ofColor(39,25,35,235));drawCompanion(campaign.chapter+1);
 }
 void ofApp::drawComplete(){
-    ofSetColor(255);hero.draw(0,0,W,H);
-    ofSetColor(shadow,145);ofDrawRectangle(0,0,W,H);
-    pixel::panel(126,76,388,234,paper);
-    centered("ARCHIVE RESTORED",320,99,ink,2);
-    ofSetColor(255);
-    sceneTexture.drawSubsection(249,127,142,83,754,40,188,110);
-    centered("THE KEEPER'S LAST LIGHT",320,226,ink);
-    centered("SAVED FROM THE STORM.",320,243,wood);
-    button("HOME",{244,269,152,29},true);
+    ofSetColor(255);hero.draw(0,0,W,H);rect(0,0,W,H,ofColor(39,25,35,110));
+    pixel::panel(130,46,380,260,pixel::wood);
+    // Crop the assembled image's bounding area; all pixels come from warped scans.
+    ofSetColor(255);exhibitTexture.drawSubsection(140,56,360,240,82,68,320,213);
+    pixel::panel(156,14,328,34,pixel::paper);centered("BACK WHERE WE BELONG",320,25,pixel::ink,2);
+    pixel::tonton(550,294,4,ofGetElapsedTimef(),3);
+    button("HOME",{244,333,152,35},true,2);
+    const float t=ofGetElapsedTimef();
+    for(int i=0;i<28;++i){int x=(i*89+23)%630,y=int(t*27+i*41)%320;rect(x,y,3,5,i%2?pixel::gold:pixel::teal);}
 }
-
-void ofApp::mousePressed(int x,int y,int buttonCode){
-    if(buttonCode!=OF_MOUSE_BUTTON_LEFT)return;
-    const auto p=logical(x,y);
+void ofApp::draw(){
+    canvas.begin();ofClear(pixel::shadow);ofSetColor(255);
+    switch(screen){
+        case Screen::Home:drawHome();break;
+        case Screen::Play:drawPlay();break;
+        case Screen::Transition:drawTransition();break;
+        case Screen::Complete:drawComplete();break;
+        case Screen::Error:centered(errorMessage,320,180,pixel::light,2);break;
+    }
+    canvas.end();ofBackground(pixel::shadow);
+    auto v=mirror::pixelViewport(ofGetWidth(),ofGetHeight());ofSetColor(255);
+    canvas.draw(v.x,v.y,W*v.scale,H*v.scale);
+}
+void ofApp::cancelDrag(){dragging=slider=wheel=-1;wheelSteps=0;}
+void ofApp::pointerDown(glm::vec2 p,bool camera){
     if(screen==Screen::Home){if(startButton.inside(p))startStory();return;}
-    if(screen==Screen::Complete){if(ofRectangle(244,269,152,29).inside(p))screen=Screen::Home;return;}
+    if(screen==Screen::Complete){if(ofRectangle(244,333,152,35).inside(p))screen=Screen::Home;return;}
     if(screen!=Screen::Play)return;
-    if(homeButton.inside(p)){gesture.cancel();screen=Screen::Home;return;}
-    if(hintButton.inside(p)){hintUntil=ofGetElapsedTimef()+6;return;}
-    if(campaign.chapter==2&&pauseButton.inside(p)){session.paused=!session.paused;return;}
-    if(sceneRect.inside(p)){
-        gesture.begin({p.x,p.y});lastBrush={-1,-1};
+    if(camera){
+        if(campaign.chapter!=1||recordOpen)return;
+    }else{
+        if(homeButton.inside(p)){hand.stop();cameraPending=false;cancelDrag();screen=Screen::Home;return;}
+        if(ofRectangle(499,222,135,146).inside(p)){hintUntil=ofGetElapsedTimef()+7;return;}
+    }
+    if(campaign.chapter==0){
+        for(int i=0;i<2;++i)if(ofRectangle(i==0?24:212,350,158,29).inside(p)){slider=i;pointerMove(p);return;}
+        if(nextButton.inside(p)){solveChapter();return;}
+    }else if(campaign.chapter==1){
+        if(!camera&&recordButton.inside(p)){cancelDrag();recordOpen=!recordOpen;return;}
+        if(recordOpen){
+            if(cameraButton.inside(p)){hand.stop();cameraPending=false;campaign.chapter=0;campaign.solved=false;recordOpen=false;hintUntil=ofGetElapsedTimef()+5;}
+            return;
+        }
+        if(!camera&&cameraButton.inside(p)){
+            cancelDrag();handDown=false;
+            if(hand.running||cameraPending){hand.stop();cameraPending=false;}
+            else {hand.error.clear();cameraPending=true;if(mirror::cameraAccess()==mirror::CameraAccess::Unknown)mirror::requestCameraAccess();}
+            return;
+        }
+        for(int i=0;i<3;++i)if(ofRectangle(111+i*92,151,72,87).inside(p)){wheel=i;wheelStart=p.x;wheelSteps=0;return;}
+    }else{
+        if(rotateButton.inside(p)){rotateSelected();return;}
+        for(auto it=order.rbegin();it!=order.rend();++it)if(!puzzle.pieces[*it].fixed&&puzzle.pieces[*it].contains({p.x,p.y})){
+            dragging=selected=*it;auto center=puzzle.pieces[*it].center;dragOffset={center.x-p.x,center.y-p.y};
+            order.erase(std::find(order.begin(),order.end(),dragging));order.push_back(dragging);return;
+        }
     }
 }
-void ofApp::mouseDragged(int x,int y,int buttonCode){
-    if(buttonCode!=OF_MOUSE_BUTTON_LEFT||screen!=Screen::Play)return;
-    auto p=logical(x,y);
-    const bool firstStroke=!gesture.dragged;
-    if(gesture.move({p.x,p.y})){
-        if(firstStroke)brushAt({gesture.start.x,gesture.start.y});
-        if(sceneRect.inside(p))brushAt(p);else lastBrush={-1,-1};
+void ofApp::pointerMove(glm::vec2 p){
+    if(screen!=Screen::Play)return;
+    if(slider>=0){float value=ofClamp((p.x-(slider==0?30:218))/144.f,0,1);
+        if(slider==0)restoration.clean=value;else restoration.clarity=value;refreshRecord();}
+    if(wheel>=0){const int steps=int(std::round((p.x-wheelStart)/24.f));
+        lock.turn(wheel,steps-wheelSteps);wheelSteps=steps;}
+    if(dragging>=0){
+        auto& piece=puzzle.pieces[dragging];float angle=piece.angle*DEG_TO_RAD;
+        float hw=(std::abs(std::cos(angle))*piece.image.cols+std::abs(std::sin(angle))*piece.image.rows)*piece.scale/2;
+        float hh=(std::abs(std::sin(angle))*piece.image.cols+std::abs(std::cos(angle))*piece.image.rows)*piece.scale/2;
+        piece.center={ofClamp(p.x+dragOffset.x,20+hw,482-hw),ofClamp(p.y+dragOffset.y,56+hh,316-hh)};
     }
 }
-void ofApp::mouseReleased(int x,int y,int buttonCode){
-    if(buttonCode!=OF_MOUSE_BUTTON_LEFT||screen!=Screen::Play)return;
-    const auto p=logical(x,y);
-    const bool stroke=gesture.pressed&&gesture.dragged;
-    const bool choose=gesture.release({p.x,p.y});lastBrush={-1,-1};
-    if(!sceneRect.inside(p))return;
-    if(choose)claimAt(scenePoint(p));
-    else if(stroke&&campaign.chapter==1)scanAt(scenePoint(p));
+void ofApp::acceptSnap(int index){
+    if(puzzle.snap(index)){sparkleUntil=ofGetElapsedTimef()+.8f;selected=-1;
+        if(puzzle.count()==5)solveChapter();}
 }
+void ofApp::pointerUp(glm::vec2 p){
+    if(screen!=Screen::Play){cancelDrag();return;}
+    pointerMove(p);int piece=dragging;bool turned=wheel>=0;cancelDrag();
+    if(piece>=0)acceptSnap(piece);
+    if(turned&&lock.solved())solveChapter();
+}
+void ofApp::rotateSelected(){
+    if(selected<1||puzzle.pieces[selected].fixed)return;
+    auto& p=puzzle.pieces[selected];p.angle=std::fmod(p.angle+90,360.f);
+    float angle=p.angle*DEG_TO_RAD;
+    float hw=(std::abs(std::cos(angle))*p.image.cols+std::abs(std::sin(angle))*p.image.rows)*p.scale/2;
+    float hh=(std::abs(std::sin(angle))*p.image.cols+std::abs(std::cos(angle))*p.image.rows)*p.scale/2;
+    p.center.x=ofClamp(p.center.x,20+hw,482-hw);p.center.y=ofClamp(p.center.y,56+hh,316-hh);
+    acceptSnap(selected);
+}
+void ofApp::mousePressed(int x,int y,int b){if(b==0){if(handDown)cancelDrag();handDown=false;pointerDown(logical(x,y));}}
+void ofApp::mouseDragged(int x,int y,int b){if(b==0)pointerMove(logical(x,y));}
+void ofApp::mouseReleased(int x,int y,int b){if(b==0)pointerUp(logical(x,y));}
 void ofApp::keyPressed(int key){
-    if(key==OF_KEY_ESC){gesture.cancel();if(screen!=Screen::Error)screen=Screen::Home;return;}
-    if(screen==Screen::Home&&key==OF_KEY_RETURN){startStory();return;}
-    if(screen==Screen::Complete&&key==OF_KEY_RETURN){screen=Screen::Home;return;}
-    if(screen==Screen::Play&&campaign.chapter==2&&key==' ')session.paused=!session.paused;
+    if(key==OF_KEY_ESC){
+        if(recordOpen){recordOpen=false;return;}
+        hand.stop();cameraPending=false;cancelDrag();if(screen!=Screen::Error)screen=Screen::Home;
+    }else if(key==OF_KEY_RETURN&&screen==Screen::Home)startStory();
+    else if((key=='r'||key=='R')&&screen==Screen::Play&&campaign.chapter==2)rotateSelected();
 }
 void ofApp::windowResized(int width,int height){
     if(width<W||height<H)ofSetWindowShape(std::max(width,W),std::max(height,H));
 }
 
-// Screenshots and inputs follow the same story progression as normal play.
-// QA never jumps to a chosen chapter and never writes player data.
 void ofApp::runQA(){
-    if(++qaFrame>2400){ofLogError()<<"QA timed out at stage "<<qaStage;ofExit(1);return;}
-    if(qaFrame%20)return;
-    const auto physical=[&](glm::vec2 p){
-        auto v=mirror::pixelViewport(ofGetWidth(),ofGetHeight());
-        return glm::ivec2(v.x+int(p.x*v.scale),v.y+int(p.y*v.scale));
-    };
-    const auto click=[&](glm::vec2 p){
-        auto q=physical(p);mousePressed(q.x,q.y,0);mouseReleased(q.x,q.y,0);
-    };
-    const auto stroke=[&](cv::Point a,cv::Point b){
-        auto p=physical(boardPoint(a)),q=physical(boardPoint(b));
-        mousePressed(p.x,p.y,0);mouseDragged(q.x,q.y,0);mouseReleased(q.x,q.y,0);
-    };
-    const auto capture=[](const std::string& name){
-        const auto folder=ofFilePath::getCurrentExeDir()+"../../../../qa/";
-        ofDirectory::createDirectory(folder,true,true);ofSaveScreen(folder+name);
-    };
+    if(++qaFrame>2400){ofLogError()<<"QA timed out at "<<qaStage;ofExit(1);return;}
+    if(qaFrame%24)return;
+    const auto physical=[&](glm::vec2 p){auto v=mirror::pixelViewport(ofGetWidth(),ofGetHeight());return glm::ivec2(v.x+int(p.x*v.scale),v.y+int(p.y*v.scale));};
+    const auto click=[&](glm::vec2 p){auto q=physical(p);mousePressed(q.x,q.y,0);mouseReleased(q.x,q.y,0);};
+    const auto drag=[&](glm::vec2 a,glm::vec2 b){auto p=physical(a),q=physical(b);mousePressed(p.x,p.y,0);mouseDragged(q.x,q.y,0);mouseReleased(q.x,q.y,0);};
+    const auto capture=[&](const std::string& name){const auto folder=ofFilePath::getCurrentExeDir()+"../../../../qa/";
+        ofDirectory::createDirectory(folder,true,true);ofSaveScreen(folder+name);};
     switch(qaStage){
         case 0:capture("qa-home.png");click(startButton.getCenter());++qaStage;break;
-        case 1:
-            click(boardPoint({100,150}));qaPassed&=!campaign.solved;
-            stroke({150,150},{390,250});stroke({650,420},{800,480});
-            qaPassed&=!campaign.solved;toastUntil=0;++qaStage;break;
-        case 2:
-            capture("qa-case1.png");click(boardPoint({784,479}));
-            qaPassed&=campaign.solved;++qaStage;break;
-        case 3:capture("qa-result.png");++qaStage;break;
-        case 4:
-            if(screen!=Screen::Play||campaign.chapter!=1)break;
-            stroke({360,280},{400,294});click(boardPoint({400,294}));
-            qaPassed&=!campaign.solved;
-            stroke({150,460},{210,449});qaPassed&=!matchPolygon.empty();
-            toastUntil=0;++qaStage;break;
-        case 5:
-            capture("qa-case2.png");click(boardPoint({210,449}));
-            qaPassed&=campaign.solved;++qaStage;break;
-        case 6:
-            if(screen!=Screen::Play||campaign.chapter!=2)break;
-            stroke({180,100},{700,250});++qaStage;break;
+        case 1:capture("qa-damaged.png");drag({30,360},{174,360});drag({218,360},{350,360});++qaStage;break;
+        case 2:capture("qa-case1.png");click(nextButton.getCenter());qaPassed&=campaign.solved;++qaStage;break;
+        case 3:if(screen!=Screen::Play||campaign.chapter!=1)break;capture("qa-case2.png");
+            drag({147,190},{195,190});drag({239,190},{215,190});qaPassed&=!campaign.solved;++qaStage;break;
+        case 4:click(recordButton.getCenter());++qaStage;break;
+        case 5:capture("qa-record.png");click(recordButton.getCenter());drag({331,190},{283,190});qaPassed&=campaign.solved;++qaStage;break;
+        case 6:if(screen!=Screen::Play||campaign.chapter!=2)break;capture("qa-case3.png");++qaStage;break;
         case 7:{
-            keyPressed(' ');auto point=mirror::LevelFactory::mothCenter(3,motionTick);
-            stroke(point-cv::Point(35,0),point);++qaStage;break;
+            if(qaPiece==5){qaPassed&=campaign.solved;++qaStage;break;}
+            auto& piece=puzzle.pieces[qaPiece];
+            // Select through an uncovered point, then rotate through the real UI.
+            glm::vec2 grab;bool found=false;
+            for(int y=60;y<315&&!found;y+=4)for(int x=22;x<482&&!found;x+=4){
+                int top=-1;for(auto it=order.rbegin();it!=order.rend();++it)
+                    if(!puzzle.pieces[*it].fixed&&puzzle.pieces[*it].contains({float(x),float(y)})){top=*it;break;}
+                if(top==qaPiece){grab={x,y};found=true;}
+            }
+            if(!found){qaPassed=false;ofExit(1);break;}
+            click(grab);
+            for(int turns=0;turns<4&&std::abs(piece.angle)>.1f;++turns)click(rotateButton.getCenter());
+            auto expected=puzzle.expectedPose(qaPiece);
+            if(expected.empty()){qaPassed=false;ofExit(1);break;}
+            auto target=mirror::mapped(expected,{piece.image.cols/2.f,piece.image.rows/2.f});
+            // Fresh hit point after rotation; move the selected scan via public mouse events.
+            glm::vec2 from{piece.center.x,piece.center.y};
+            drag(from,{target.x+3,target.y-2});
+            qaPassed&=piece.fixed;++qaPiece;break;
         }
-        case 8:
-            capture("qa-case3.png");click(boardPoint(mirror::LevelFactory::mothCenter(3,motionTick)));
-            qaPassed&=campaign.solved;++qaStage;break;
-        case 9:
-            if(screen!=Screen::Complete)break;
-            capture("qa-complete.png");
-            ofLogNotice()<<"QA story ended: "<<(qaPassed?"ALL THREE CHAPTERS COMPLETED":"FAILED");
-            ofExit(qaPassed?0:1);break;
+        case 8:if(screen!=Screen::Complete)break;capture("qa-complete.png");
+            ofLogNotice()<<"QA story: "<<(qaPassed?"ALL THREE CHAPTERS COMPLETED":"FAILED");ofExit(qaPassed?0:1);break;
     }
 }

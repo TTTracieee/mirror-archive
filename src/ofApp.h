@@ -1,10 +1,11 @@
 #pragma once
 #include "ofMain.h"
 #include "GameModel.h"
-#include "LevelFactory.h"
-#include "VisionEngine.h"
+#include "ArchiveGame.h"
+#include "HandInput.h"
+#include "CameraAccess.h"
 #include "PixelGrid.h"
-#include "PixelUI.h"
+#include "Tonton.h"
 
 class ofApp : public ofBaseApp {
 public:
@@ -12,6 +13,7 @@ public:
     void setup() override;
     void update() override;
     void draw() override;
+    void exit() override;
     void mousePressed(int x,int y,int button) override;
     void mouseDragged(int x,int y,int button) override;
     void mouseReleased(int x,int y,int button) override;
@@ -20,42 +22,46 @@ public:
 private:
     enum class Screen {Home,Play,Transition,Complete,Error};
     Screen screen=Screen::Home;
-    mirror::LevelFactory factory;
     mirror::Campaign campaign;
-    mirror::Session session;
-    mirror::PointerGesture gesture;
-    mirror::LevelData data;
-    cv::Mat processed,flow,previous,display;
-    ofTexture sceneTexture,referenceTexture;
-    ofImage hero,moth;
+    mirror::Restoration restoration;
+    mirror::CombinationLock lock;
+    mirror::PhotoPuzzle puzzle;
+    mirror::HandInput hand;
+    cv::Mat cleanRecord,damagedRecord,repairedRecord;
+    ofTexture recordTexture,exhibitTexture;
+    std::array<ofTexture,5> photoTextures;
+    ofImage hero;
     ofFbo canvas;
-    const ofRectangle sceneRect{12,48,480,300};
-    glm::vec2 lastBrush{-1,-1};
-    std::vector<cv::Point2f> matchPolygon;
-    int motionTick=0,qaStage=0,qaFrame=0;
-    bool qaMode=false,qaPassed=true,dirty=false;
-    float nextMotion=0,nextScan=0,toastUntil=0,transitionAt=0,hintUntil=0;
-    std::string toastMessage,errorMessage;
-
+    std::vector<int> order{0,1,2,3,4};
+    glm::vec2 dragOffset{},handCursor{};
+    int dragging=-1,selected=-1,slider=-1,wheel=-1,wheelSteps=0;
+    float wheelStart=0,transitionAt=0,hintUntil=0,sparkleUntil=0,lastHandAt=0,cameraStartedAt=0;
+    bool qaMode=false,qaPassed=true,handDown=false,recordOpen=false,exhibitReady=false,cameraPending=false;
+    int qaStage=0,qaFrame=0,qaPiece=1;
+    std::string errorMessage;
+    void makeRecord(const cv::Mat& photo);
+    void refreshRecord();
     void startStory();
-    void loadChapter();
+    void solveChapter();
     void advanceStory();
-    void advanceFilm();
-    void brushAt(glm::vec2 position);
-    mirror::MatchEvidence scanAt(cv::Point point);
-    void claimAt(cv::Point point);
-    void notify(const std::string& message);
-    void refreshTexture();
+    void pointerDown(glm::vec2 point,bool camera=false);
+    void pointerMove(glm::vec2 point);
+    void pointerUp(glm::vec2 point);
+    void cancelDrag();
+    void rotateSelected();
+    void acceptSnap(int index);
     void upload(const cv::Mat& image,ofTexture& texture);
     void drawHome();
     void drawPlay();
+    void drawRecord();
+    void drawLock();
+    void drawCompanion(int happy=0);
     void drawTransition();
     void drawComplete();
+    void drawDesk();
     void button(const std::string& text,const ofRectangle& rect,bool active=false,int scale=1);
     void centered(const std::string& text,int centerX,int y,ofColor color,int scale=1);
     glm::vec2 logical(float x,float y) const;
     bool over(const ofRectangle& rect) const;
-    cv::Point scenePoint(glm::vec2 point) const;
-    glm::vec2 boardPoint(cv::Point point) const;
     void runQA();
 };

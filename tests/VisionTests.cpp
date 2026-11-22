@@ -2,6 +2,7 @@
 #include "GameModel.h"
 #include "LevelFactory.h"
 #include "PixelGrid.h"
+#include "ArchiveGame.h"
 #include <iostream>
 #include <stdexcept>
 
@@ -98,6 +99,52 @@ int main(int argc,char** argv){
         campaign.solve();require(campaign.advance()&&campaign.complete,"Third repair completes the story");
         require(!campaign.advance()&&campaign.chapter==2,"Completion cannot advance out of bounds");
         campaign.start();require(campaign.chapter==0&&!campaign.complete&&!campaign.solved,"Start always begins the whole story");
+        CombinationLock cabinet;
+        cabinet.turn(0,2);require(cabinet.digits==std::array<int,3>{3,2,7},"First gear couples only its right neighbor");
+        cabinet.turn(1,-1);require(cabinet.digits==std::array<int,3>{3,1,6},"Middle gear couples the last wheel");
+        require(!cabinet.solved(),"Partial password cannot unlock the cabinet");
+        cabinet.turn(2,-2);require(cabinet.solved(),"Three deliberate gestures solve the lock");
+        cabinet.turn(2,-15);require(cabinet.digits[2]==9,"Reverse turns wrap correctly");
+        cabinet.turn(-1,5);require(cabinet.digits[2]==9,"Invalid wheel input is ignored");
+
+        auto photo=cv::imread(std::string(argc>1?argv[1]:"bin/data/art")+"/town-photo.png");
+        require(!photo.empty(),"Final photo asset is available");
+        cv::Mat original;cv::resize(photo,original,{640,426},0,0,cv::INTER_NEAREST);
+        cv::Mat damaged;original.convertTo(damaged,CV_8U,.32,87);
+        cv::RNG rain(4187);
+        for(int i=0;i<original.total()/4;++i){int x=rain.uniform(0,damaged.cols),y=rain.uniform(0,damaged.rows);
+            uchar v=rain.uniform(0,2)?230:24;damaged.at<cv::Vec3b>(y,x)={v,v,v};}
+        Restoration controls;
+        require(cv::norm(controls.apply(damaged),damaged,cv::NORM_INF)==0,"Zero controls preserve the actual damaged observation");
+        controls.clean=1;controls.clarity=.9;
+        double beforeError=cv::norm(damaged,original,cv::NORM_L1),afterError=cv::norm(controls.apply(damaged),original,cv::NORM_L1);
+        std::cout<<"New restoration error: "<<beforeError<<" -> "<<afterError<<"\n";
+        require(afterError<beforeError*.6,"Real denoising and contrast adjustment recover image detail");
+
+        PhotoPuzzle puzzle;puzzle.load(photo);
+        require(puzzle.count()==1,"Only the center scan starts fixed");
+        require(!registerScans(blank,puzzle.pieces[0].image).valid(),"Textureless scans cannot create a fake registration");
+        cv::Mat rotated;cv::rotate(puzzle.pieces[1].image,rotated,cv::ROTATE_90_CLOCKWISE);
+        require(registerScans(rotated,puzzle.pieces[0].image).valid(),"SIFT registration survives rotated scan pixels");
+        for(int i=1;i<5;++i){
+            auto& piece=puzzle.pieces[i];auto expected=puzzle.expectedPose(i);
+            std::cout<<"Scan "<<i<<": "<<puzzle.matches[i][0].inliers<<" inliers\n";
+            require(!expected.empty(),"Every real scan has sufficient measured overlap");
+            auto position=mapped(expected,{piece.image.cols/2.f,piece.image.rows/2.f});
+            piece.center=position;piece.angle=90;
+            require(!puzzle.snap(i),"Correct center with wrong rotation must not snap");
+            piece.angle=0;piece.center.x+=60;
+            require(!puzzle.snap(i),"Geometrically distant scan must not snap");
+            piece.center=position+cv::Point2f(4,-3);
+            require(puzzle.snap(i),"Near measured alignment snaps into place");
+            require(!puzzle.sparkle.empty(),"Snap feedback contains real inlier positions");
+        }
+        require(puzzle.count()==5,"Five registered scans complete the photograph");
+        auto merged=puzzle.composite();cv::Mat expected;cv::resize(original,expected,{320,213},0,0,cv::INTER_NEAREST);
+        auto region=merged(cv::Rect(82,68,320,213));
+        double meanError=cv::norm(region,expected,cv::NORM_L1)/(expected.total()*3);
+        std::cout<<"Warped/feathered photo MAE: "<<meanError<<"\n";
+        require(meanError<12,"Exhibit reconstructs the photo from registered scans");
         std::cout<<"PASS: "<<checks<<" checks\n";return 0;
     }catch(const std::exception& e){std::cerr<<"FAIL: "<<e.what()<<"\n";return 1;}
 }
