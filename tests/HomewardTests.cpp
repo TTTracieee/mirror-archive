@@ -59,6 +59,28 @@ int main(int argc,char** argv){try{
     same.damaged.at<cv::Vec3b>(20,28)={230,230,230};auto feather=same.image().at<cv::Vec3b>(20,28)[0];
     check(feather>100&&feather<230,"The brush edge blends gradually inside the painted area");
     check(same.image().at<cv::Vec3b>(0,0)[0]==100,"Soft edges do not spill outside the brush");
+    // Use the same small pixel digits as the game, then measure visible ink separation.
+    auto clue=small.clone();cv::Rect plate(213,71,50,17),stain(203,61,70,37);
+    cv::rectangle(clue,plate,{161,216,246},cv::FILLED);
+    cv::Mat inkMask=cv::Mat::zeros(clue.size(),CV_8U),paperMask=inkMask.clone();paperMask(plate).setTo(255);
+    std::array<std::array<int,7>,3> digits{{{{14,17,1,2,4,8,31}},{{14,17,19,21,25,17,14}},{{14,17,17,14,17,17,14}}}};
+    for(int d=0;d<3;++d)for(int y=0;y<7;++y)for(int bit=0;bit<5;++bit)if(digits[d][y]&(1<<(4-bit))){
+        cv::Rect dot(221+d*12+bit*2,73+y*2,2,2);clue(dot).setTo(cv::Scalar(34,44,54));inkMask(dot).setTo(255);paperMask(dot).setTo(0);
+    }
+    BrushRepair faded,ordinary;faded.load(clue,stain);ordinary.load(clue);
+    cv::Mat outside(clue.size(),CV_8U,cv::Scalar(255));outside(stain).setTo(0);cv::Mat outsideDifference;cv::absdiff(faded.damaged,ordinary.damaged,outsideDifference);
+    check(cv::mean(outsideDifference,outside)==cv::Scalar(0,0,0,0),"Clue aging leaves the rest of the photograph unchanged");
+    auto separation=[&](const cv::Mat& image){cv::Mat gray;cv::cvtColor(image,gray,cv::COLOR_BGR2GRAY);return cv::mean(gray,paperMask)[0]-cv::mean(gray,inkMask)[0];};
+    double faint=separation(faded.image());
+    for(auto tool:{Filter::Clean,Filter::Contrast,Filter::Detail})faded.stroke({200,80},{275,80},25,tool);
+    double readable=separation(faded.image());std::cout<<"Doorplate ink contrast: "<<faint<<" -> "<<readable<<"\n";
+    check(faint<14,"The unpainted doorplate starts with faint ink");
+    check(readable>25&&readable>faint*2.5,"Real filters recover readable contrast from the observation");
+    check(cv::norm(faded.image()(cv::Rect(350,200,50,50)),faded.damaged(cv::Rect(350,200,50,50)),cv::NORM_INF)==0,"Clue repair stays inside the player's brush");
+    auto envelope=story::foundEnvelope(),map=story::foundMap(),arrival=story::reachedHome();
+    check(envelope.size()==1&&envelope[0].words.find("map")==std::string::npos,"The box reveals only an envelope");
+    check(map.front().words.find("map inside")!=std::string::npos,"Opening the envelope reveals its map");
+    check(arrival.size()==1&&arrival[0].words.find("back")!=std::string::npos,"Only arrival reveals the writing on the back");
     auto personal=story::ending(true),quiet=story::ending(false);
     check(personal[3].words!=quiet[3].words&&personal[3].words.find("held my hand")!=std::string::npos,"Lia responds to the player's actual family repair");
     auto opening=story::opening(),ending=story::ending();
@@ -73,7 +95,7 @@ int main(int argc,char** argv){try{
     bool playerAfter=false,helperAfter=false;
     for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}
     check(playerAfter&&helperAfter,"The player and helper share the final conversation");
-    for(auto script:{opening,ending,personal})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
+    for(auto script:{opening,ending,personal,envelope,map,arrival})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
 
     Maze maze;auto route=maze.solution();
     std::cout<<"Shortest maze route: "<<route.size()<<" gestures\n";

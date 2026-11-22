@@ -17,6 +17,7 @@ ofRectangle directionButton(int index){
     return areas[index];
 }
 const ofRectangle castButton{176,318,130,30},aboutButton{334,318,130,30},infoBack{520,43,68,28},soundButton{594,350,30,26};
+const ofRectangle envelopeArea{180,65,280,185},openEnvelopeButton{236,306,168,32};
 const ofRectangle letterArea{70,39,500,290};
 const cv::Rect address{213,71,50,17};
 const std::array<std::string,3> titles{"Restore the photo","Open the box","Guide the letter"};
@@ -79,7 +80,7 @@ void ofApp::setup(){
                 cv::rectangle(sourcePhoto,{x+bit*2,73+y*2,2,2},{34,44,54},cv::FILLED);
             x+=12;
         }
-        repair.load(sourcePhoto);upload(repair.damaged,damagedTexture);refreshPhoto();reader.load(ofToDataPath("digits/digits.png",true));
+        repair.load(sourcePhoto,{address.x-10,address.y-10,address.width+20,address.height+20});upload(repair.damaged,damagedTexture);refreshPhoto();reader.load(ofToDataPath("digits/digits.png",true));
         for(int i=0;i<3;++i){writing[i]=cv::Mat::zeros(108,90,CV_8U);refreshInk(i);}
     }catch(const std::exception& e){ofLogError()<<e.what();errorMessage="MISSING RESOURCES";screen=Screen::Error;if(qaMode)ofExit(1);}
 }
@@ -93,8 +94,9 @@ void ofApp::refreshInk(int i){
     cv::Mat display(writing[i].size(),CV_8UC3,cv::Scalar(184,239,255));
     display.setTo(cv::Scalar(32,35,63),writing[i]);upload(display,writingTextures[i]);
 }
-void ofApp::teachOnce(int lesson,const std::string& words){
-    if(taught[lesson])return;taught[lesson]=true;lessons.push_back({"tonton",words});
+void ofApp::openEnvelope(){
+    if(screen!=Screen::Envelope||envelopeOpened)return;
+    envelopeOpened=true;say(story::foundMap());
 }
 bool ofApp::saveCopy(const std::string& path){
     if(returnedPhoto.empty())return false;
@@ -103,7 +105,7 @@ bool ofApp::saveCopy(const std::string& path){
     }catch(const std::exception& e){ofLogError()<<"Photo export failed: "<<e.what();notice="Could not save. Try another folder.";noticeUntil=ofGetElapsedTimef()+5;return false;}
 }
 void ofApp::beginStory(){
-    taught.fill(false);lessons.clear();copySaved=false;
+    cameraTaught=cameraTipPending=envelopeOpened=false;copySaved=false;
     stopCamera();resumeCamera=false;adjustingStrength=comparing=false;inspectedHouse=-1;chapter=0;repair.reset();refreshPhoto();maze.reset();delivered=false;photoOpen=false;brushing=false;drawingCell=-1;
     recognized={-1,-1,-1};inkDue={0,0,0};notice.clear();moveDuration=0;brushRadius=19;filterIndex=0;intro=true;exhibitAt=-1;revisiting=false;lockAttempts=0;wrongHomeHint=false;trail.clear();
     for(int i=0;i<3;++i){writing[i].setTo(0);guesses[i]={};refreshInk(i);}
@@ -134,18 +136,13 @@ void ofApp::nextSpeech(){
 void ofApp::openLetter(){if(!letterOpened){letterOpened=true;letterAt=ofGetElapsedTimef();}}
 void ofApp::beginEnding(){outro=true;returnPhotoAt=liaLeftAt=-1;say(story::ending(repair.peopleRestored()),Screen::Complete);}
 void ofApp::finishChapter(){
-    lessons.clear();photoOpen=false;
+    cameraTipPending=false;photoOpen=false;
     if(chapter==0){
         if(revisiting){chapter=returnChapter;revisiting=false;if(resumeCamera){resumeCamera=false;toggleCamera();}return;}
-        chapter=1;say({{"tonton","Let's try your password!\nWrite one number in each box.\nYou can use more than one stroke.",1}});
-    }else if(chapter==1){chapter=2;maze.reset();trail.clear();say({{"tonton","There is a map inside!\nAnd an envelope, too.",2},
-        {"tonton","It says, 'For little Tang.'\nThat's Lia's grandma!\nHer mom made this map for her.",2},
-        {"tonton","Open Photo and look at the house.\nCompare it with the houses on the map.\nYou can clean the photo more if needed."},
-        {"tonton","Click a house to take a closer look.\nPress Start camera when you are ready."}});
-    }else {delivered=true;stopCamera();say({
-        {"tonton","We made it home!\nWait... there is writing on the back.",3},
-        {"You","Let's turn the map over, gently."},
-        {"tonton","See the folded corner?\nClick it to read the message.",1}},Screen::Letter);}
+        chapter=1;say({{"tonton","Write one number in each box.\nCheck the small windows, then press Open.",1}});
+    }else if(chapter==1){chapter=2;maze.reset();trail.clear();say(story::foundEnvelope(),Screen::Envelope);
+    }else {delivered=true;stopCamera();say(story::reachedHome(),Screen::Letter);}
+
 }
 void ofApp::revisitPhoto(int from){
     returnChapter=from;resumeCamera=from==2&&(hand.running||cameraPending);
@@ -180,7 +177,7 @@ void ofApp::updateCamera(float now){
     if(hand.frames!=previewFrame&&!hand.preview.empty()){
         ofBuffer buffer(hand.preview.data(),hand.preview.size());ofPixels pixels;
         if(ofLoadImage(pixels,buffer)){cameraTexture.loadData(pixels);cameraTexture.setTextureMinMagFilter(GL_NEAREST,GL_NEAREST);++cameraFrames;lastCameraFrame=now;
-            teachOnce(3,"Put your hand in the middle first.\nHold your hand to one side.\nWait for the ring to fill.");}
+            if(!cameraTaught)cameraTipPending=true;}
         previewFrame=hand.frames;
     }
     if(!hand.running&&!hand.error.empty()){notice="Camera stopped. Try Camera again.";noticeUntil=now+6;palm.reset();}
@@ -197,12 +194,11 @@ void ofApp::update(){
     if(moveDuration>0&&screen==Screen::Play&&now>=moveAt+moveDuration){moveDuration=0;
         if(maze.solved())finishChapter();
         else if(maze.house(maze.position)&&!wrongHomeHint){wrongHomeHint=true;say({{"tonton","This looks different from the photo.\nLet's compare them again."}});}
-        else teachOnce(4,"The letter stops at forks and corners.\nBring your hand back to the middle.\nThen choose the next direction.");
     }
-    for(int i=0;i<3;++i)if(inkDue[i]>0&&now>=inkDue[i]&&drawingCell!=i){guesses[i]=reader.guess(writing[i]);recognized[i]=guesses[i].digit;inkDue[i]=0;
-        if(chapter==1)teachOnce(2,"The small windows show what I read.\nUse Clear if a number looks wrong.\nWhen they look right, press Open.");}
-    if(screen==Screen::Play&&!brushing&&!adjustingStrength&&drawingCell<0&&moveDuration<=0&&inspectedHouse<0&&!lessons.empty()){
-        auto lesson=lessons.front();lessons.erase(lessons.begin());say({lesson});
+    for(int i=0;i<3;++i)if(inkDue[i]>0&&now>=inkDue[i]&&drawingCell!=i){guesses[i]=reader.guess(writing[i]);recognized[i]=guesses[i].digit;inkDue[i]=0;}
+    if(screen==Screen::Play&&chapter==2&&moveDuration<=0&&inspectedHouse<0&&cameraTipPending){
+        cameraTaught=true;cameraTipPending=false;
+        say({{"tonton","Start in the middle, then hold one side.\nWait for the ring. Come back to middle.\nThe letter stops at forks and corners."}});
     }
     if(qaMode)runQA();
 }
@@ -428,14 +424,16 @@ void ofApp::drawPlay(){
     if(inspectedHouse>=0)drawHouseDetail();
 }
 
+void ofApp::drawSealedEnvelope(){
+    drawDesk();drawChest({112,34,416,240},true);drawEnvelope(envelopeArea);
+    if(screen==Screen::Envelope)button("Open envelope",openEnvelopeButton,true);
+}
+
 void ofApp::drawDialogue(){
     if(intro)drawIntro();
     else if(outro)drawOutro();
-    else if(chapter==2&&!delivered&&dialogue[speechIndex].happy==2){
-        drawDesk();drawChest({112,34,416,240},true);
-        ofPushMatrix();ofTranslate(156,173);ofScale(.24f,.24f);drawMap(false);ofPopMatrix();
-        drawEnvelope({345,171,114,76});
-    }else drawPlay();
+    else if(chapter==2&&!delivered&&!envelopeOpened)drawSealedEnvelope();
+    else drawPlay();
     rect(0,0,W,H,ofColor(28,21,27,50));
     const auto& speech=dialogue[speechIndex];
     paperFrame(18,278,604,95,paper);
@@ -496,7 +494,7 @@ void ofApp::renderCanvas(int scale){
     canvasHasCamera=hand.running&&cameraTexture.isAllocated();
     canvas.begin();ofClear(shadow);ofSetColor(255);ofPushMatrix();ofScale(scale,scale);
     switch(screen){case Screen::Home:drawHome();break;case Screen::Info:drawInfo();break;case Screen::Play:drawPlay();break;case Screen::Dialogue:drawDialogue();break;
-        case Screen::Letter:drawLetter();break;case Screen::Complete:drawComplete();break;case Screen::Error:centered(errorMessage,320,180,light,2);break;}
+        case Screen::Envelope:drawSealedEnvelope();break;case Screen::Letter:drawLetter();break;case Screen::Complete:drawComplete();break;case Screen::Error:centered(errorMessage,320,180,light,2);break;}
     ofPopMatrix();canvas.end();
 }
 void ofApp::drawMagnifier(glm::vec2 p){
@@ -524,6 +522,10 @@ void ofApp::pointerDown(glm::vec2 p){
     }
     if(screen==Screen::Info){if(infoBack.inside(p))screen=Screen::Home;return;}
     if(screen==Screen::Dialogue){if(ofRectangle(18,266,604,107).inside(p))nextSpeech();return;}
+    if(screen==Screen::Envelope){
+        if(homeButton.inside(p)){screen=Screen::Home;return;}
+        if(envelopeArea.inside(p)||openEnvelopeButton.inside(p))openEnvelope();return;
+    }
     if(screen==Screen::Complete){
         if(goHomeButton.inside(p))screen=Screen::Home;
         else if(copyButton.inside(p)){
@@ -551,8 +553,7 @@ void ofApp::pointerDown(glm::vec2 p){
         else if(largerBrush.inside(p))brushRadius=std::min(39,brushRadius+5);
         else if(undoButton.inside(p)){repair.undo();refreshPhoto();}
         else if(nextButton.inside(p))finishChapter();
-        else for(int i=0;i<3;++i)if(filterButton(i).inside(p)){filterIndex=i;
-            if(i==1)teachOnce(1,"Contrast brings back light and shade.\nUse Strength for a softer change.\nHold Original to compare your work.");}
+        else for(int i=0;i<3;++i)if(filterButton(i).inside(p))filterIndex=i;
     }else if(chapter==1){
         if(ofRectangle(20,240,76,62).inside(p)){revisitPhoto(1);return;}
         for(int i=0;i<3;++i){auto r=inkArea(i);
@@ -591,8 +592,7 @@ void ofApp::pointerMove(glm::vec2 p){
     }
 }
 void ofApp::pointerUp(glm::vec2 p){
-    if(screen==Screen::Play){pointerMove(p);if(drawingCell>=0)inkDue[drawingCell]=ofGetElapsedTimef()+.45f;
-        if(brushing)teachOnce(0,"That's a good start!\nTry Contrast on a faded part next.\nSize changes how wide your brush is.");}
+    if(screen==Screen::Play){pointerMove(p);if(drawingCell>=0)inkDue[drawingCell]=ofGetElapsedTimef()+.45f;}
     drawingCell=-1;brushing=adjustingStrength=comparing=false;
 }
 void ofApp::mousePressed(int x,int y,int b){if(b==0)pointerDown(logical(x,y));}
@@ -600,7 +600,7 @@ void ofApp::mouseDragged(int x,int y,int b){if(b==0)pointerMove(logical(x,y));}
 void ofApp::mouseReleased(int x,int y,int b){if(b==0)pointerUp(logical(x,y));}
 void ofApp::keyPressed(int key){
     if(key==OF_KEY_ESC){if(inspectedHouse>=0){inspectedHouse=-1;palm.reset();lastPalmStamp=0;return;}if(photoOpen){photoOpen=false;palm.reset();return;}stopCamera();moveDuration=0;brushing=false;drawingCell=-1;screen=Screen::Home;}
-    else if(key==OF_KEY_RETURN||key==' '){if(screen==Screen::Play&&chapter==0&&key==' '&&!brushing&&!adjustingStrength)comparing=true;else if(screen==Screen::Home)beginStory();else if(screen==Screen::Dialogue)nextSpeech();else if(screen==Screen::Letter){if(!letterOpened)openLetter();else if(ofGetElapsedTimef()-letterAt>=.6f)beginEnding();}}
+    else if(key==OF_KEY_RETURN||key==' '){if(screen==Screen::Play&&chapter==0&&key==' '&&!brushing&&!adjustingStrength)comparing=true;else if(screen==Screen::Home)beginStory();else if(screen==Screen::Dialogue)nextSpeech();else if(screen==Screen::Envelope)openEnvelope();else if(screen==Screen::Letter){if(!letterOpened)openLetter();else if(ofGetElapsedTimef()-letterAt>=.6f)beginEnding();}}
     else if(screen==Screen::Play&&chapter==2){
         if(key==OF_KEY_LEFT)moveEnvelope(homeward::Direction::Left);if(key==OF_KEY_RIGHT)moveEnvelope(homeward::Direction::Right);
         if(key==OF_KEY_UP)moveEnvelope(homeward::Direction::Up);if(key==OF_KEY_DOWN)moveEnvelope(homeward::Direction::Down);
@@ -624,12 +624,19 @@ void ofApp::runQA(){
         if(cue==story::Cue::Doorbell){capture("qa-doorbell.png");checkQA(bool(bellsPlayed==1&&doorbell.isLoaded()),__LINE__);}
         if(cue==story::Cue::ReturnPhoto){capture("qa-handover.png");checkQA(bool(giftReturned&&giftPhoto.isAllocated()&&!returnedPhoto.empty()&&cv::norm(returnedPhoto,repair.image(),cv::NORM_INF)==0&&cv::countNonZero(repair.mask)<int(repair.mask.total())),__LINE__);}
         if(cue==story::Cue::LiaLeaves)capture("qa-goodbye.png");
+        if(!intro&&!outro&&chapter==2&&!delivered&&!envelopeOpened){checkQA(afterDialogue==Screen::Envelope,__LINE__);capture("qa-open-box.png");}
         if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Open Photo")!=std::string::npos&&!delivered)capture("qa-photo-guide.png");
         if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Hold your hand")!=std::string::npos&&!delivered)capture("qa-camera-guide.png");
         if(delivered&&!outro&&speechIndex==0)capture("qa-turn-guide.png");
         click({400,350});return;
     }
 
+    if(screen==Screen::Envelope){
+        checkQA(!envelopeOpened&&!letterOpened&&!delivered&&!hand.running,__LINE__);capture("qa-sealed-envelope.png");
+        auto position=maze.position;keyPressed(OF_KEY_RIGHT);checkQA(maze.position==position,__LINE__);
+        click(openEnvelopeButton.getCenter());checkQA(envelopeOpened&&screen==Screen::Dialogue&&!letterOpened,__LINE__);
+        capture("qa-map-found.png");return;
+    }
     switch(qaStage){
         case 0:
             capture("qa-home.png");click(castButton.getCenter());checkQA(bool(screen==Screen::Info),__LINE__);capture("qa-cast.png");click(infoBack.getCenter());
@@ -640,7 +647,7 @@ void ofApp::runQA(){
             for(int tool=0;tool<3;++tool){click(filterButton(tool).getCenter());for(int y=100;y<298;y+=22){auto a=physical({176,float(y)});mousePressed(a.x,a.y,0);
                 for(int x=176;x<445;x+=24){auto b=physical({float(x),float(y)});mouseDragged(b.x,b.y,0);}
                 mouseReleased(a.x,a.y,0);}}
-            ++qaStage;break;
+            checkQA(screen==Screen::Play,__LINE__);++qaStage;break;
         }
         case 2:{
             auto painted=repair.image();auto mask=repair.mask.clone();float original=repair.strength(homeward::Filter(filterIndex));
@@ -707,7 +714,7 @@ void ofApp::runQA(){
         case 8:{
             auto path=ofFilePath::getCurrentExeDir()+"../../../../qa/player-photo.png";
             checkQA(saveCopy(path),__LINE__);auto exported=cv::imread(path);checkQA(!exported.empty()&&cv::norm(exported,returnedPhoto,cv::NORM_INF)==0,__LINE__);
-            checkQA(taught[0]&&taught[1]&&taught[2]&&taught[4]&&(!qaCamera||taught[3]),__LINE__);
+            checkQA(envelopeOpened&&(!qaCamera||cameraTaught),__LINE__);
             checkQA(bool(screen==Screen::Complete&&giftReturned&&liaLeftAt>=0),__LINE__);capture("qa-complete.png");ofLogNotice()<<"QA homeward story: "<<(qaPassed?"PASS":"FAIL");ofExit(qaPassed?0:1);break;}
     }
 }

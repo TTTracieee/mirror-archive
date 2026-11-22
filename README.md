@@ -16,13 +16,17 @@ Built with **openFrameworks, OpenCV, and MediaPipe**. No physical props are need
 | Open the box | Write the password with your mouse. Check the numbers the game reads. Use Clear or choose another suggested number if needed. |
 | Guide the letter | Compare the repaired photo with the houses. Use your camera and hand to guide the letter home. |
 
+The house number has a small, faded stain. Clean and Contrast bring out the faint ink; the rest of the photo keeps its light aging.
+
 You do not need to paint the whole photo. Click **I found the password!** when you are ready.
 
 Click **Photo** in the second or third chapter to keep working on it. Your writing, route, and position stay saved during the story. **Back to the map** returns to the same place. Click a house to see it next to your own repaired photo.
 
 For the camera, hold your hand in the middle first. Move it to one side and wait for the ring to fill. The letter follows a straight path and stops at a fork, corner, house, or dead end. It never turns by itself. Bring your hand back to the middle before choosing another direction. Arrow keys and the arrows in the preview also work.
 
-tonton gives short tips as you use the photo tools, write a number, and start the camera.
+The box holds a sealed envelope. Click **Open envelope** to find the map inside. Finish the map before turning it over to read the message.
+
+tonton gives one short guide before each task. Painting, changing tools, writing, and reaching a corner do not open extra dialogue. Camera instructions appear only on the first start. A wrong password or house can bring a short reminder.
 
 At the end, Lia receives **the photo you actually repaired**. If you bring the people in the photo back into view, she shares a memory of holding her grandma's hand. The game does not finish the photo for you.
 
@@ -66,7 +70,7 @@ The camera starts only after you choose **Start camera**. macOS may ask for perm
 
 ## How it works
 
-- **Photo:** selective median filtering, contrast based on the photo's brightness histogram, gentle sharpening, and soft brush edges. Each tool has its own strength. Undo restores both painting and strength changes.
+- **Photo:** selective median filtering, contrast based on the photo's brightness histogram and local luminance equalization (CLAHE), gentle sharpening, and soft brush edges. Each tool has its own strength. Undo restores both painting and strength changes.
 - **Writing:** thresholding, size and slant correction, HOG features, and OpenCV kNN.
 - **Hand control:** OpenCV camera capture and MediaPipe hand landmarks, with smoothing, a hold timer, and a return-to-middle rule.
 
@@ -82,11 +86,11 @@ build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa
 build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa-camera
 ```
 
-Current algorithm checks: **85 legacy checks, 871 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
+Current algorithm checks: **85 legacy checks, 889 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
 
-The latest real-camera check received 43 frames on first start and 28 after returning from photo editing. Both sessions closed successfully; no camera images were saved.
+The latest real-camera check received 44 frames on first start and 30 after returning from photo editing. Both sessions closed successfully; no camera images were saved.
 
-Full-story QA covers painting, strength changes, Original, short tips, handwriting, house views, returning to the photo, maze movement, returning the player's own photo, and saving an identical PNG. Automated maze play uses arrow keys. Real hand play under different lighting still needs user testing.
+Full-story QA covers painting, strength changes, Original, the sealed envelope and map reveal, handwriting, house views, returning to the photo, maze movement, returning the player's own photo, and saving an identical PNG. Automated maze play uses arrow keys. Real hand play under different lighting still needs user testing.
 
 ## Project files
 

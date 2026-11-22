@@ -21,8 +21,18 @@ inline std::vector<Speech> opening(){return {
     {"Lia","She died last month. I miss her.\nI want to know what she kept inside.",1},
     {"Lia","The password is her first home's address.\nThat is what she told me.\nBut I have never been there."},
     {"You","I'll take good care of them.\nLet's find that house number."},
-    {"tonton","Let's clean this old photo.\nThe house number may open the box.",1},
-    {"tonton","Drag Clean over the photo to begin.\nWhen you can read the number, try the box.\nYou can come back any time."}
+    {"tonton","Brush with Clean, then try Contrast.\nLook for the house number.\nTry the box when you can read it.",1}
+};}
+
+inline std::vector<Speech> foundEnvelope(){return {
+    {"tonton","An envelope!\nLet's open it.",2}
+};}
+inline std::vector<Speech> foundMap(){return {
+    {"tonton","There's a map inside!\nIt says, 'For little Tang.'\nThat's Lia's grandma!",2},
+    {"tonton","Open Photo and compare the houses.\nClick a house for a closer look.\nThen press Start camera."}
+};}
+inline std::vector<Speech> reachedHome(){return {
+    {"tonton","We made it! There's writing on the back.\nClick the folded corner. Let's see.",3}
 };}
 
 inline std::vector<Speech> ending(bool peopleRestored=false){return {

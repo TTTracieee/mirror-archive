@@ -22,14 +22,13 @@ public:
     void keyReleased(int key) override;
     void windowResized(int width,int height) override;
 private:
-    enum class Screen {Home,Info,Play,Dialogue,Letter,Complete,Error};
+    enum class Screen {Home,Info,Play,Dialogue,Envelope,Letter,Complete,Error};
     using Speech=story::Speech;
     Screen screen=Screen::Home,afterDialogue=Screen::Play;
     std::vector<Speech> dialogue;
     size_t speechIndex=0;
     int chapter=0,drawingCell=-1,brushRadius=19,filterIndex=0,lockAttempts=0;
-    std::array<bool,5> taught{};
-    std::vector<Speech> lessons;
+    bool cameraTaught=false,cameraTipPending=false,envelopeOpened=false;
     bool copySaved=false;
     bool intro=false,outro=false,revisiting=false,wrongHomeHint=false;
     bool letterOpened=false,giftReturned=false,soundOn=true;
@@ -74,7 +73,8 @@ private:
     homeward::Direction lastWave=homeward::Direction::None;
     float waveAt=0;
     void beginStory();
-    void teachOnce(int lesson,const std::string& words);
+    void openEnvelope();
+    void drawSealedEnvelope();
     bool saveCopy(const std::string& path);
     void drawMagnifier(glm::vec2 point);
     void say(std::vector<Speech> lines,Screen next=Screen::Play);
