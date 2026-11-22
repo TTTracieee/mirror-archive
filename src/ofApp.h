@@ -19,6 +19,7 @@ public:
     void mouseDragged(int x,int y,int button) override;
     void mouseReleased(int x,int y,int button) override;
     void keyPressed(int key) override;
+    void keyReleased(int key) override;
     void windowResized(int width,int height) override;
 private:
     enum class Screen {Home,Info,Play,Dialogue,Letter,Complete,Error};
@@ -27,6 +28,9 @@ private:
     std::vector<Speech> dialogue;
     size_t speechIndex=0;
     int chapter=0,drawingCell=-1,brushRadius=19,filterIndex=0,lockAttempts=0;
+    std::array<bool,5> taught{};
+    std::vector<Speech> lessons;
+    bool copySaved=false;
     bool intro=false,outro=false,revisiting=false,wrongHomeHint=false;
     bool letterOpened=false,giftReturned=false,soundOn=true;
     int infoPage=0,bellsPlayed=0;
@@ -62,7 +66,7 @@ private:
     int drawScale=1;
     ofTexture photoTexture,damagedTexture,cameraTexture,giftPhoto;
     cv::Mat returnedPhoto;
-    ofImage hero,lia,mapArt,envelopeArt,paperArt,titleArt,moth;
+    ofImage hero,lia,mapArt,envelopeArt,paperArt,titleArt;
     std::array<ofImage,2> chests;
     std::array<ofImage,3> houses;
     ofSoundPlayer doorbell;
@@ -70,6 +74,9 @@ private:
     homeward::Direction lastWave=homeward::Direction::None;
     float waveAt=0;
     void beginStory();
+    void teachOnce(int lesson,const std::string& words);
+    bool saveCopy(const std::string& path);
+    void drawMagnifier(glm::vec2 point);
     void say(std::vector<Speech> lines,Screen next=Screen::Play);
     void nextSpeech();
     void enterSpeech();

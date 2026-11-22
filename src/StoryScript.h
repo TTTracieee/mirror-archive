@@ -22,15 +22,15 @@ inline std::vector<Speech> opening(){return {
     {"Lia","The password is her first home's address.\nThat is what she told me.\nBut I have never been there."},
     {"You","I'll take good care of them.\nLet's find that house number."},
     {"tonton","Let's clean this old photo.\nThe house number may open the box.",1},
-    {"tonton","Drag a brush over the photo.\nTry Clean, Contrast, and Detail.\nChange Strength to see what works."},
-    {"tonton","Hold Before to compare your work.\nWhen you can read the number, try the box.\nYou can always come back to the photo."}
+    {"tonton","Drag Clean over the photo to begin.\nWhen you can read the number, try the box.\nYou can come back any time."}
 };}
 
-inline std::vector<Speech> ending(){return {
+inline std::vector<Speech> ending(bool peopleRestored=false){return {
     {"Lia","Grandma left a light on for me.\nEven when I came home late.\nNow I know why.",1},
     {"You","You do not have to stop missing her.\nYou can keep her love with you."},
     {"You","Here is the photo I worked on.\nHere. Take it home with the letter.",0,Cue::ReturnPhoto},
-    {"Lia","Thank you. I'll put them by my bed.\nI'll keep a light on, too.",2},
+    {"Lia",peopleRestored?"I can see them holding hands.\nGrandma held my hand like that, too.":"Thank you for taking care of her photo.\nI will keep it close.",2},
+    {"Lia","I'll put them by my bed.\nI'll keep a light on, too.",2},
     {"You","Take care, Lia.\nCome back any time."},
     {"Lia","I will. Thank you, both of you.",2},
     {"You","I watch Lia leave with her photo.\nThe room feels quiet again.",0,Cue::LiaLeaves,true},

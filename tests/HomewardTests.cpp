@@ -43,10 +43,28 @@ int main(int argc,char** argv){try{
     }
     auto gift=repair.image();auto saved=gift.clone();repair.reset();
     check(cv::norm(gift,saved,cv::NORM_INF)==0,"Player's returned photo is an independent snapshot");
+    BrushRepair natural;natural.load(small);
+    check(!natural.peopleRestored(),"Untouched family does not trigger repair-specific thanks");
+    natural.stroke({220,205},{300,205},100,Filter::Contrast);natural.setStrength(Filter::Contrast,0);
+    check(!natural.peopleRestored(),"Zero-strength painting does not count as visible restoration");
+    natural.setStrength(Filter::Contrast,.8f);
+    check(natural.peopleRestored(),"Visible work in the family area earns a personal response");
+    auto first=natural.image();natural.stroke({220,205},{300,205},100,Filter::Contrast);
+    check(cv::norm(first,natural.image(),cv::NORM_INF)==0,"Repeated strokes do not accumulate filter damage");
+    BrushRepair same;same.load(small);
+    check(cv::norm(same.damaged,natural.damaged,cv::NORM_INF)==0,"Photo aging is deterministic");
+    same.damaged=cv::Mat(40,40,CV_8UC3,cv::Scalar(100,100,100));same.reset();
+    same.damaged.at<cv::Vec3b>(20,20)={230,230,230};same.stroke({20,20},{20,20},9);
+    check(same.image().at<cv::Vec3b>(20,20)[0]==100,"Clean removes isolated dust at the brush centre");
+    same.damaged.at<cv::Vec3b>(20,28)={230,230,230};auto feather=same.image().at<cv::Vec3b>(20,28)[0];
+    check(feather>100&&feather<230,"The brush edge blends gradually inside the painted area");
+    check(same.image().at<cv::Vec3b>(0,0)[0]==100,"Soft edges do not spill outside the brush");
+    auto personal=story::ending(true),quiet=story::ending(false);
+    check(personal[3].words!=quiet[3].words&&personal[3].words.find("held my hand")!=std::string::npos,"Lia responds to the player's actual family repair");
     auto opening=story::opening(),ending=story::ending();
     check(opening.front().speaker=="You"&&opening.front().narration,"The player introduces their archive without a speaker plate");
     check(!opening[5].narration&&opening[5].speaker=="You","Spoken player dialogue retains its nameplate");
-    check(ending[6].narration&&ending.back().narration,"Departure and closing thoughts are narration");
+    check(ending[7].narration&&ending.back().narration,"Departure and closing thoughts are narration");
     int bell=-1,greeting=-1,handover=-1,leave=-1;
     for(size_t i=0;i<opening.size();++i){if(opening[i].cue==story::Cue::Doorbell)bell=i;if(opening[i].speaker=="tonton"&&greeting<0)greeting=i;}
     check(bell>=0&&bell<greeting,"Doorbell comes before the assistant's greeting");
@@ -55,7 +73,7 @@ int main(int argc,char** argv){try{
     bool playerAfter=false,helperAfter=false;
     for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}
     check(playerAfter&&helperAfter,"The player and helper share the final conversation");
-    for(auto script:{opening,ending})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
+    for(auto script:{opening,ending,personal})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
 
     Maze maze;auto route=maze.solution();
     std::cout<<"Shortest maze route: "<<route.size()<<" gestures\n";

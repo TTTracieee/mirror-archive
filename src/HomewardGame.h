@@ -22,7 +22,13 @@ class BrushRepair {
     std::vector<Edit> history;
     static void blend(const cv::Mat& processed,cv::Mat& result,const cv::Mat& layer,float amount){
         if(amount<=0||cv::countNonZero(layer)==0)return;
-        cv::Mat mixed;cv::addWeighted(result,1-amount,processed,amount,0,mixed);mixed.copyTo(result,layer);
+        // Feather inward so untouched pixels remain exactly unchanged.
+        cv::Mat distance;cv::distanceTransform(layer,distance,cv::DIST_L2,3);
+        for(int y=0;y<result.rows;++y)for(int x=0;x<result.cols;++x){
+            float a=std::min(1.f,distance.at<float>(y,x)/5.f)*amount;
+            auto& pixel=result.at<cv::Vec3b>(y,x);auto target=processed.at<cv::Vec3b>(y,x);
+            for(int c=0;c<3;++c)pixel[c]=cv::saturate_cast<uchar>(pixel[c]*(1-a)+target[c]*a);
+        }
     }
 public:
     cv::Mat damaged,mask;
@@ -39,10 +45,11 @@ public:
         observed.convertTo(result,CV_8U,gain,10-low*gain);return result;
     }
     void load(const cv::Mat& source){
-        cv::Mat faded;cv::GaussianBlur(source,faded,{3,3},.55);faded.convertTo(damaged,CV_8U,.48,64);
+        cv::Mat faded;cv::GaussianBlur(source,faded,{3,3},.55);faded.convertTo(damaged,CV_8U,.62,43);
         cv::RNG random(208);
-        for(size_t i=0;i<damaged.total()/5;++i){int x=random.uniform(0,damaged.cols),y=random.uniform(0,damaged.rows);
-            uchar v=random.uniform(0,2)?235:18;damaged.at<cv::Vec3b>(y,x)={v,v,v};}
+        for(size_t i=0;i<damaged.total()/40;++i){int x=random.uniform(0,damaged.cols),y=random.uniform(0,damaged.rows);
+            bool light=random.uniform(0,2);
+            damaged.at<cv::Vec3b>(y,x)=light?cv::Vec3b(191,216,229):cv::Vec3b(48,62,78);}
         reset();
     }
     void reset(){for(auto& layer:layers)layer=cv::Mat::zeros(damaged.size(),CV_8U);mask=cv::Mat::zeros(damaged.size(),CV_8U);strengths={1.f,.8f,.45f};history.clear();}
@@ -54,11 +61,22 @@ public:
         auto& layer=layers[int(filter)];cv::line(layer,from,to,255,radius*2,cv::LINE_8);cv::circle(layer,to,radius,255,cv::FILLED);
         mask=layers[0]|layers[1]|layers[2];
     }
+    bool peopleRestored()const{
+        // Story feedback measures visible work in the family area, not face recognition.
+        cv::Rect area=cv::Rect(205,125,110,160)&cv::Rect(0,0,damaged.cols,damaged.rows);
+        if(area.empty())return false;
+        auto result=image();cv::Mat difference,gray,visible;
+        cv::absdiff(result(area),damaged(area),difference);cv::cvtColor(difference,gray,cv::COLOR_BGR2GRAY);
+        cv::threshold(gray,visible,6,255,cv::THRESH_BINARY);
+        return cv::countNonZero(visible)>area.area()*.45;
+    }
     cv::Mat image()const{
         cv::Mat result=damaged.clone(),processed;
-        if(cv::countNonZero(layers[0])&&strengths[0]>0){cv::medianBlur(result,processed,3);blend(processed,result,layers[0],strengths[0]);}
+        if(cv::countNonZero(layers[0])&&strengths[0]>0){cv::Mat median,difference,gray,outliers;cv::medianBlur(result,median,3);
+            cv::absdiff(result,median,difference);cv::cvtColor(difference,gray,cv::COLOR_BGR2GRAY);cv::threshold(gray,outliers,24,255,cv::THRESH_BINARY);
+            processed=result.clone();median.copyTo(processed,outliers);blend(processed,result,layers[0],strengths[0]);}
         if(cv::countNonZero(layers[1])&&strengths[1]>0){processed=autoContrast(result);blend(processed,result,layers[1],strengths[1]);}
-        if(cv::countNonZero(layers[2])&&strengths[2]>0){cv::Mat soft;cv::GaussianBlur(result,soft,{0,0},.8);cv::addWeighted(result,2,soft,-1,0,processed);blend(processed,result,layers[2],strengths[2]);}
+        if(cv::countNonZero(layers[2])&&strengths[2]>0){cv::Mat soft;cv::GaussianBlur(result,soft,{0,0},.8);cv::addWeighted(result,1.6,soft,-.6,0,processed);blend(processed,result,layers[2],strengths[2]);}
         return result;
     }
 };
