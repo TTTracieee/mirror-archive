@@ -6,7 +6,7 @@ constexpr int W=640,H=384;
 const ofRectangle startButton{236,258,168,44},homeButton{580,8,48,26};
 const ofRectangle photoArea{104,40,432,288},nextButton{459,343,165,30};
 const ofRectangle cameraButton{486,243,140,28},referenceButton{486,288,140,28};
-const ofRectangle castButton{176,318,130,30},aboutButton{334,318,130,30},infoBack{520,43,68,28},soundButton{536,354,88,23};
+const ofRectangle castButton{176,318,130,30},aboutButton{334,318,130,30},infoBack{520,43,68,28},soundButton{594,350,30,26};
 const ofRectangle letterArea{70,39,500,290};
 const cv::Rect address{213,71,50,17};
 const std::array<std::string,3> titles{"Restore the photo","Open the box","Guide the letter"};
@@ -55,7 +55,7 @@ void ofApp::setup(){
         ofPixels chestSheet;if(!ofLoadImage(chestSheet,"art/keepsake-chests.png"))throw std::runtime_error("Missing chest art");
         for(int i=0;i<2;++i){ofPixels cell;chestSheet.cropTo(cell,i*chestSheet.getWidth()/2,0,chestSheet.getWidth()/2,chestSheet.getHeight());chests[i].setFromPixels(cell);trim(chests[i],400);}
         if(!envelopeArt.load("art/keepsake-envelope.png")||!paperArt.load("art/letter-paper.png")||!titleArt.load("art/archive-sign.png")||!moth.load("art/moth.png"))throw std::runtime_error("Missing prop art");
-        trim(envelopeArt,144);trim(paperArt,500);trim(titleArt,478);trim(moth,28);
+        trim(envelopeArt,144);trim(paperArt,500);trim(titleArt,478);trim(moth,40);
         if(!doorbell.load("audio/doorbell.wav"))throw std::runtime_error("Missing doorbell sound");doorbell.setVolume(qaMode?.08f:.3f);
         fontFor(11);fontFor(22);fontFor(33);
         auto photo=cv::imread(ofToDataPath("art/family-home.png",true));
@@ -116,11 +116,11 @@ void ofApp::finishChapter(){
     photoOpen=false;
     if(chapter==0){
         if(revisiting){chapter=returnChapter;revisiting=false;return;}
-        chapter=1;say({{"tonton","Let's try your code!\nWrite one number in each box.\nCheck the small windows, then press Open.",1},
+        chapter=1;say({{"tonton","Let's try your password!\nWrite one number in each box.\nCheck the small windows, then press Open.",1},
             {"tonton","You can use more than one stroke.\nClear lets you try again.\nClick Photo to work on the photo."}});
     }else if(chapter==1){chapter=2;maze.reset();trail.clear();say({{"tonton","For little Tang... That's Lia's grandma!\nHer mom made her a little map.",2},
         {"tonton","Let's send the letter to her old home.\nStart camera. Put your hand\nin the middle of the camera view."},
-        {"tonton","Move your hand to a side. Hold it there.\nWhen the ring is full, the letter will move.\nGo back to the middle to try again."}});
+        {"tonton","Move your hand to a side. Hold it there.\nThe letter stops at forks and corners.\nGo back to the middle to try again."}});
     }else {delivered=true;stopCamera();say({
         {"tonton","We found her home!\nThere is something on the back.",3},
         {"You","Let's turn it over, gently."},
@@ -162,7 +162,7 @@ void ofApp::updateCamera(float now){
 void ofApp::moveEnvelope(homeward::Direction direction){
     if(screen!=Screen::Play||chapter!=2||photoOpen||delivered||moveDuration>0)return;
     moveFrom=maze.position;movePath=maze.route(maze.position,direction);
-    if(!movePath.empty()){maze.position=movePath.back();moveAt=ofGetElapsedTimef();moveDuration=.16f+float(movePath.size())*.13f;trail.push_back(moveFrom);trail.insert(trail.end(),movePath.begin(),movePath.end());}
+    if(!movePath.empty()){maze.position=movePath.back();moveAt=ofGetElapsedTimef();moveDuration=.16f+float(movePath.size())*.13f;trail.push_back(moveFrom);trail.insert(trail.end(),movePath.begin(),movePath.end());palm.reset();lastPalmStamp=0;}
 }
 void ofApp::update(){
     float now=ofGetElapsedTimef();
@@ -236,12 +236,22 @@ void ofApp::drawHome(){
     // Ambient motion stays behind the controls and never moves their hit targets.
     rect(277,190,78,66,ofColor(105,221,198,8+int(7*(1+std::sin(t*1.3f)))));
     for(int i=0;i<23;++i){int x=40+(i*73)%560,y=150+int(std::fmod(t*(3+i%4)+i*23,184.f));rect(x+int(std::sin(t*.6f+i)*6),y,1+i%2,1,ofColor(255,222,142,50+int(50*(1+std::sin(t+i)))));}
-    ofPushMatrix();ofTranslate(int(489+std::sin(t*.25f)*42),int(170+std::sin(t*.42f)*17));ofScale(1,.55f+.45f*std::abs(std::sin(t*7)));drawProp(moth,{-14,-10,28,20});ofPopMatrix();
+    // Uniform scale and gentle banking preserve the sprite's original proportions.
+    for(int i=0;i<3;++i){
+        float phase=t*(.34f+i*.06f)+i*2.1f;
+        float x=150+i*170+std::sin(phase)*48,y=203+std::sin(phase*1.7f+i)*22;
+        float size=(i==1?22.f:30.f)*(1+.04f*std::sin(t*4+i));
+        ofPushMatrix();ofTranslate(std::round(x),std::round(y));ofRotateDeg(std::sin(phase*2)*12);
+        drawProp(moth,{-size/2,-size/2,size,size});ofPopMatrix();
+    }
     int bob=int(std::sin(t*.7f));ofPushMatrix();ofTranslate(0,bob);drawProp(titleArt,{81,23,478,163});
     centered("MIRROR ARCHIVE",320,101,light,4);ofPopMatrix();
-    textInBox("Old things. New stories.",{172,193,296,28},light);
     button("START",startButton,true,3);button("Meet us",castButton);button("About",aboutButton);
-    button(soundOn?"Sound on":"Sound off",soundButton);
+    if(over(soundButton))rect(soundButton.x,soundButton.y,soundButton.width,soundButton.height,ofColor(49,37,35,160));
+    auto soundColor=over(soundButton)?light:ofColor(190,165,126);
+    rect(599,359,4,7,soundColor);ofSetColor(soundColor);ofDrawTriangle(603,359,608,355,608,370);
+    if(soundOn){line(612,358,614,360,soundColor);line(614,360,614,365,soundColor);line(614,365,612,367,soundColor);}
+    else {line(612,359,619,366,soundColor);line(619,359,612,366,soundColor);}
 }
 void ofApp::drawInfo(){
     drawHome();rect(0,0,W,H,ofColor(24,20,27,190));paperFrame(48,29,544,327,paper);
@@ -261,11 +271,11 @@ void ofApp::drawInfo(){
         }
     }else{
         rasterText("About this game",72,68,ink,true);
-        body("A small story about family and care.",72,91);
+        body("CityUHK CS4187 Mini Project.",72,91);
         label("How to play",72,121,wood);
         body("Mouse: brushes and writing.\nCamera: guide the letter with your hand.\nSpace: next line. Esc: back to the cover.",72,143);
         label("Credits & notice",72,211,wood);
-        body("A fictional story. AI-assisted artwork.\nBuilt with openFrameworks, OpenCV and MediaPipe.\nFont: Departure Mono (OFL).\nYour camera stays on this computer.\nNo images are saved or uploaded.",72,233);
+        body("A fictional story about family and care.\nBuilt with openFrameworks, OpenCV and MediaPipe.\nFont: Departure Mono (OFL).\nYour camera stays on this computer.\nNo images are saved or uploaded.",72,233);
     }
 }
 void ofApp::drawDesk(){
@@ -383,9 +393,9 @@ void ofApp::drawDialogue(){
     rect(0,0,W,H,ofColor(28,21,27,50));
     const auto& speech=dialogue[speechIndex];
     paperFrame(18,278,604,95,paper);
-    paperFrame(38,265,104,24,ofColor(114,72,49));textInBox(speech.speaker,{38,265,104,24},light);
+    if(!speech.narration){paperFrame(38,265,104,24,ofColor(114,72,49));textInBox(speech.speaker,{38,265,104,24},light);}
     rasterText(speech.words,38,313,ink,true);
-    if(speech.speaker!="You")rect(507,290,1,70,ofColor(208,179,130));
+    if(!speech.narration&&speech.speaker!="You")rect(507,290,1,70,ofColor(208,179,130));
     if(speech.speaker=="tonton"){
         float age=ofGetElapsedTimef()-dialogueAt;int shake=age<.35&&speech.happy?int(std::sin(age*65)*2):0;
         pixel::tonton(562+shake,330,2,ofGetElapsedTimef(),speech.happy);
@@ -423,11 +433,11 @@ void ofApp::drawOutro(){
     ofSetColor(255);giftPhoto.draw(photo);drawEnvelope({photo.x+210,photo.y+125,90,60});
 }
 void ofApp::drawComplete(){
-    ofSetColor(255);hero.draw(0,0,W,H);rect(0,0,W,H,ofColor(30,22,30,65));
-    paperFrame(113,98,414,148,paper);
-    rasterText("A light left on",199,140,ink,true);
-    body("I put the tools away for tonight.\nThe next story can wait until morning.",150,174);
-    button("Close the archive",{222,289,196,36},true);
+    ofSetColor(255);hero.draw(0,0,W,H);rect(0,0,W,H,ofColor(30,22,30,60));
+    rect(0,226,W,65,ofColor(35,25,30,195));
+    rasterText("I leave a light on by the door.",171,251,light,true);
+    rasterText("Then tonton and I head home.",186,275,light,true);
+    button("Go home",{249,315,142,36},true);
 }
 void ofApp::renderCanvas(int scale){
     drawScale=scale;
@@ -456,7 +466,7 @@ void ofApp::pointerDown(glm::vec2 p){
     }
     if(screen==Screen::Info){if(infoBack.inside(p))screen=Screen::Home;return;}
     if(screen==Screen::Dialogue){if(ofRectangle(18,266,604,107).inside(p))nextSpeech();return;}
-    if(screen==Screen::Complete){if(ofRectangle(222,289,196,36).inside(p))screen=Screen::Home;return;}
+    if(screen==Screen::Complete){if(ofRectangle(249,315,142,36).inside(p))screen=Screen::Home;return;}
     if(screen==Screen::Letter){
         if(!letterOpened&&letterArea.inside(p))openLetter();
         else if(letterOpened&&ofGetElapsedTimef()-letterAt>=.6f&&nextButton.inside(p))beginEnding();
@@ -533,6 +543,7 @@ void ofApp::runQA(){
         auto cue=dialogue[speechIndex].cue;float age=ofGetElapsedTimef()-dialogueAt;
         if((cue==story::Cue::ShowKeepsakes&&age<.65f)||(cue==story::Cue::Doorbell&&age<1.f)||(cue==story::Cue::ReturnPhoto&&age<1.f))return;
         capture("qa-dialogue-"+std::to_string(chapter)+"-"+std::to_string(speechIndex)+"-"+std::to_string(dialogue[speechIndex].happy)+".png");
+        if(intro&&speechIndex==0){capture("qa-narration.png");qaPassed&=dialogue[speechIndex].narration;}
         if(cue==story::Cue::ShowKeepsakes){capture("qa-intro.png");capture("qa-type-3.png",3);capture("qa-type-4.png",4);}
         if(cue==story::Cue::Doorbell){capture("qa-doorbell.png");qaPassed&=bellsPlayed==1&&doorbell.isLoaded();}
         if(cue==story::Cue::ReturnPhoto){capture("qa-handover.png");qaPassed&=giftReturned&&giftPhoto.isAllocated();}
@@ -568,7 +579,8 @@ void ofApp::runQA(){
         case 4:if(inkDue[0]>0||inkDue[1]>0||inkDue[2]>0)break;ofLogNotice()<<"QA handwriting: "<<recognized[0]<<recognized[1]<<recognized[2];qaPassed&=recognized==std::array<int,3>{2,0,8};capture("qa-case2.png");click(nextButton.getCenter());if(chapter!=2){ofLogError()<<"QA handwriting lock failed";ofExit(1);return;}++qaStage;break;
         case 5:
             if(qaMove==0){
-                keyPressed(OF_KEY_RIGHT);qaPassed&=moveDuration>0;
+                auto expected=maze.destination(maze.position,homeward::Direction::Right);keyPressed(OF_KEY_RIGHT);qaPassed&=moveDuration>0&&maze.position==expected;
+                keyPressed(OF_KEY_RIGHT);qaPassed&=maze.position==expected;
                 keyPressed(OF_KEY_ESC);qaPassed&=screen==Screen::Home&&moveDuration==0;
                 click(startButton.getCenter());qaPassed&=chapter==0&&cv::countNonZero(repair.mask)==0&&recognized==std::array<int,3>{-1,-1,-1};
                 qaMove=1;qaStage=1;break;

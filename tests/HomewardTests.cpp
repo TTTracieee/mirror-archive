@@ -26,7 +26,9 @@ int main(int argc,char** argv){try{
     check(cv::norm(finished,small,cv::NORM_L1)<cv::norm(repair.damaged,small,cv::NORM_L1),"Returned photo is restored from damaged pixels");
     check(cv::countNonZero(repair.mask)==0,"Finishing the gift does not overwrite player brush history");
     auto opening=story::opening(),ending=story::ending();
-    check(opening.front().speaker=="You","The player introduces their own archive");
+    check(opening.front().speaker=="You"&&opening.front().narration,"The player introduces their archive without a speaker plate");
+    check(!opening[5].narration&&opening[5].speaker=="You","Spoken player dialogue retains its nameplate");
+    check(ending[6].narration&&ending.back().narration,"Departure and closing thoughts are narration");
     int bell=-1,greeting=-1,handover=-1,leave=-1;
     for(size_t i=0;i<opening.size();++i){if(opening[i].cue==story::Cue::Doorbell)bell=i;if(opening[i].speaker=="tonton"&&greeting<0)greeting=i;}
     check(bell>=0&&bell<greeting,"Doorbell comes before the assistant's greeting");
@@ -39,8 +41,11 @@ int main(int argc,char** argv){try{
 
     Maze maze;auto route=maze.solution();
     std::cout<<"Shortest maze route: "<<route.size()<<" gestures\n";
-    check(route.size()>=4&&route.size()<=12,"Maze requires a short sequence of deliberate choices");
+    check(!route.empty(),"Maze has a route home");
     check(!maze.move(Direction::Left),"Blocked directions do not move");
+    check(maze.destination({5,7},Direction::Right)==cv::Point(9,7),"Stop at the corner instead of automatically turning north");
+    check(maze.destination({9,7},Direction::Up)==cv::Point(9,5),"A fresh command follows the next straight leg");
+    check(maze.route({9,7},Direction::Right).empty(),"Continuing into the corner wall cannot turn the envelope");
     for(auto d:route)check(maze.move(d),"Solution uses legal moves");
     check(maze.solved(),"Route reaches correct home");
     for(auto p:maze.decoys){maze.position=p;check(!maze.solved(),"Wrong houses do not complete story");check(!maze.solution().empty(),"Wrong house is returnable");}
@@ -49,7 +54,13 @@ int main(int argc,char** argv){try{
     while(!pending.empty()){
         auto p=pending.front();pending.pop();if(!visited.insert(p.y*13+p.x).second)continue;
         maze.position=p;check(p==maze.home||!maze.solution().empty(),"Every reachable stop can still finish");
-        for(auto d:directions){auto q=maze.destination(p,d);if(q!=p)pending.push(q);}
+        for(auto d:directions){auto path=maze.route(p,d);auto q=maze.destination(p,d);
+            for(size_t i=0;i<path.size();++i){
+                check(path[i]==p+step(d)*int(i+1),"Every animated tile stays in the requested direction");
+                if(i+1<path.size())check(!maze.house(path[i])&&maze.exits(path[i])==2,"A command never passes a fork or house");
+            }
+            if(q!=p)check(maze.house(q)||maze.exits(q)!=2||!maze.road(q+step(d)),"A straight route stops at a decision or corner");
+            if(q!=p)pending.push(q);}
     }
 
     const double dt=1./30;
@@ -63,6 +74,13 @@ int main(int argc,char** argv){try{
         check(events==1,"Holding a side emits exactly one command");
         palm.update(.5,.5,false,dt);check(!palm.ready(),"Tracking loss requires recentering");
     }
+    Maze controlled;PalmGuide held;
+    for(int i=0;i<8;++i)held.update(.5,.5,true,dt);
+    for(int i=0;i<120;++i){auto d=held.update(.8,.5,true,dt);if(d!=Direction::None)controlled.move(d);}
+    check(controlled.position==cv::Point(3,7),"Holding a hand to the side stops at the first junction");
+    for(int i=0;i<8;++i)held.update(.5,.5,true,dt);
+    for(int i=0;i<60;++i){auto d=held.update(.8,.5,true,dt);if(d!=Direction::None)controlled.move(d);}
+    check(controlled.position==cv::Point(5,7),"A new centered gesture permits the next straight corridor");
     PalmGuide palm;for(int i=0;i<8;++i)palm.update(.5,.5,true,dt);
     for(int i=0;i<30;++i)check(palm.update(.8,.8,true,dt)==Direction::None,"Diagonal palm is not a command");
     for(int i=0;i<30;++i)check(palm.update(.8,.5,true,dt,{true,false,true,true})==Direction::None,"Blocked side cannot move");

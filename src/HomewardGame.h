@@ -174,8 +174,7 @@ public:
 };
 
 struct Maze {
-    // Two routes, a misleading house and a long returnable dead end. Movement
-    // stops at a junction, dead end or house; no precision timing is needed.
+    // Follow only the chosen straight corridor. Stop before a turn or at a decision.
     const std::array<std::string,9> tiles{{
         "#############", "#...#.......#", "#.#.#.#####.#",
         "#.#...#.....#", "#.#####.###.#", "#.....#...#.#",
@@ -188,13 +187,15 @@ struct Maze {
     int exits(cv::Point p)const{int n=0;for(auto d:directions)n+=road(p+step(d));return n;}
     bool house(cv::Point p)const{return p==home||p==decoys[0]||p==decoys[1];}
     std::vector<cv::Point> route(cv::Point origin,Direction direction)const{
-        auto next=origin+step(direction);std::vector<cv::Point> path;
+        const auto delta=step(direction);auto next=origin+delta;
+        std::vector<cv::Point> path;
         if(direction==Direction::None||!road(next))return path;
-        auto previous=origin;
-        for(int guard=0;guard<117;++guard){path.push_back(next);if(house(next)||exits(next)!=2)break;
-            cv::Point after=next;for(auto d:directions){auto q=next+step(d);if(road(q)&&q!=previous){after=q;break;}}
-            previous=next;next=after;
-        }return path;
+        while(road(next)){
+            path.push_back(next);
+            if(house(next)||exits(next)!=2||!road(next+delta))break;
+            next+=delta;
+        }
+        return path;
     }
     cv::Point destination(cv::Point origin,Direction d)const{auto path=route(origin,d);return path.empty()?origin:path.back();}
     bool move(Direction d){auto target=destination(position,d);bool moved=target!=position;position=target;return moved;}
