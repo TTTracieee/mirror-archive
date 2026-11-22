@@ -35,11 +35,12 @@ public:
         auto& layer=layers[int(filter)];cv::line(layer,from,to,255,radius*2,cv::LINE_8);cv::circle(layer,to,radius,255,cv::FILLED);
         mask=layers[0]|layers[1]|layers[2];
     }
-    cv::Mat image()const{
+    cv::Mat image(bool finishAll=false)const{
+        const cv::Mat all=finishAll?cv::Mat(damaged.size(),CV_8U,cv::Scalar(255)):cv::Mat();
         cv::Mat result=damaged.clone(),processed;
-        cv::medianBlur(result,processed,3);processed.copyTo(result,layers[0]);
-        result.convertTo(processed,CV_8U,1/.48,-64/.48);processed.copyTo(result,layers[1]);
-        cv::Mat soft;cv::GaussianBlur(result,soft,{0,0},.8);cv::addWeighted(result,1.5,soft,-.5,0,processed);processed.copyTo(result,layers[2]);
+        cv::medianBlur(result,processed,3);processed.copyTo(result,finishAll?all:layers[0]);
+        result.convertTo(processed,CV_8U,1/.48,-64/.48);processed.copyTo(result,finishAll?all:layers[1]);
+        cv::Mat soft;cv::GaussianBlur(result,soft,{0,0},.8);cv::addWeighted(result,1.5,soft,-.5,0,processed);processed.copyTo(result,finishAll?all:layers[2]);
         return result;
     }
 };

@@ -5,6 +5,7 @@
 #include "PixelGrid.h"
 #include "Tonton.h"
 #include "HandInput.h"
+#include "StoryScript.h"
 #include <map>
 
 class ofApp : public ofBaseApp {
@@ -20,13 +21,16 @@ public:
     void keyPressed(int key) override;
     void windowResized(int width,int height) override;
 private:
-    enum class Screen {Home,Play,Dialogue,Letter,Complete,Error};
-    struct Speech {std::string speaker,words;int happy=0;};
+    enum class Screen {Home,Info,Play,Dialogue,Letter,Complete,Error};
+    using Speech=story::Speech;
     Screen screen=Screen::Home,afterDialogue=Screen::Play;
     std::vector<Speech> dialogue;
     size_t speechIndex=0;
     int chapter=0,drawingCell=-1,brushRadius=19,filterIndex=0,lockAttempts=0;
-    bool intro=false,revisiting=false,wrongHomeHint=false;
+    bool intro=false,outro=false,revisiting=false,wrongHomeHint=false;
+    bool letterOpened=false,giftReturned=false,soundOn=true;
+    int infoPage=0,bellsPlayed=0;
+    float bellAt=-100,returnPhotoAt=-1,liaLeftAt=-1;
     int returnChapter=1;
     std::array<float,3> inkDue{0,0,0};
     std::array<homeward::DigitGuess,3> guesses;
@@ -54,14 +58,19 @@ private:
     cv::Point lastBrush{},lastInk{},moveFrom{1,7};
     std::map<int,ofTrueTypeFont> fonts;
     int drawScale=1;
-    ofTexture photoTexture,cameraTexture;
-    ofImage hero,lia,mapArt,buildings;
+    ofTexture photoTexture,cameraTexture,giftPhoto;
+    ofImage hero,lia,mapArt,buildings,envelopeArt,paperArt,titleArt,moth;
+    std::array<ofImage,2> chests;
+    ofSoundPlayer doorbell;
     ofFbo canvas;
     homeward::Direction lastWave=homeward::Direction::None;
     float waveAt=0;
     void beginStory();
     void say(std::vector<Speech> lines,Screen next=Screen::Play);
     void nextSpeech();
+    void enterSpeech();
+    void openLetter();
+    void beginEnding();
     void finishChapter();
     void refreshPhoto();
     void refreshInk(int cell);
@@ -75,6 +84,12 @@ private:
     void upload(const cv::Mat& image,ofTexture& texture);
     void drawHome();
     void drawIntro();
+    void drawInfo();
+    void drawOutro();
+    void drawEnvelope(const ofRectangle& area);
+    void drawChest(const ofRectangle& area,bool opened=false);
+    void drawProp(ofImage& art,const ofRectangle& area);
+    void textInBox(const std::string& text,const ofRectangle& area,ofColor color);
     void renderCanvas(int scale);
     ofTrueTypeFont& fontFor(int pixels);
     float bodyWidth(const std::string& text);
@@ -87,6 +102,7 @@ private:
     void drawPhoto();
     void drawLock();
     void drawMaze();
+    void drawMap(bool caption=true);
     void drawHouse(int x,int y,int kind);
     void drawDialogue();
     void drawLetter();

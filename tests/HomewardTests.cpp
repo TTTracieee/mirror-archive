@@ -1,6 +1,8 @@
 #include "HomewardGame.h"
+#include "StoryScript.h"
 #include <iostream>
 #include <set>
+#include <sstream>
 static int checks=0;
 void check(bool ok,const char* message){++checks;if(!ok)throw std::runtime_error(message);}
 int main(int argc,char** argv){try{
@@ -19,6 +21,21 @@ int main(int argc,char** argv){try{
     check(cv::norm(repair.image(),before,cv::NORM_INF)>0,"Contrast tool changes selected pixels");
     repair.undo();check(cv::norm(repair.image(),before,cv::NORM_INF)==0,"Undo restores all filter masks");
     repair.reset();check(cv::countNonZero(repair.mask)==0,"Replay resets restoration");
+
+    auto finished=repair.image(true);
+    check(cv::norm(finished,small,cv::NORM_L1)<cv::norm(repair.damaged,small,cv::NORM_L1),"Returned photo is restored from damaged pixels");
+    check(cv::countNonZero(repair.mask)==0,"Finishing the gift does not overwrite player brush history");
+    auto opening=story::opening(),ending=story::ending();
+    check(opening.front().speaker=="You","The player introduces their own archive");
+    int bell=-1,greeting=-1,handover=-1,leave=-1;
+    for(size_t i=0;i<opening.size();++i){if(opening[i].cue==story::Cue::Doorbell)bell=i;if(opening[i].speaker=="tonton"&&greeting<0)greeting=i;}
+    check(bell>=0&&bell<greeting,"Doorbell comes before the assistant's greeting");
+    for(size_t i=0;i<ending.size();++i){if(ending[i].cue==story::Cue::ReturnPhoto)handover=i;if(ending[i].cue==story::Cue::LiaLeaves)leave=i;}
+    check(handover>=0&&leave>handover,"Photo is returned before Lia leaves");
+    bool playerAfter=false,helperAfter=false;
+    for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}
+    check(playerAfter&&helperAfter,"The player and helper share the final conversation");
+    for(auto script:{opening,ending})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
 
     Maze maze;auto route=maze.solution();
     std::cout<<"Shortest maze route: "<<route.size()<<" gestures\n";

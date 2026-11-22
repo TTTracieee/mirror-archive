@@ -123,3 +123,45 @@ Full final prompt:
 ### Departure Mono
 
 `bin/data/fonts/DepartureMono-Regular.otf` and `OFL.txt`: Departure Mono 1.500 by Helena Zhang, SIL Open Font License 1.1. Official source: https://github.com/rektdeckard/departure-mono/releases/tag/v1.500 . Downloaded from the author's `DepartureMono-1.500.zip` release. The design is based on an 11px grid. The game rasterizes only at exact 11px multiples into a display-resolution FBO (e.g. 33px dialogue in 2x output), without resampling text through the low-resolution art grid. Antialiasing is disabled. The prior Pixelify Sans experiment was removed. Title bitmap font remains original code. Historical no-additional-font statements above do not apply to this refresh.
+
+## First-person archive story refresh (2026-11-22)
+
+Mode: `builtin` OpenAI imagegen. Four new original assets, no reference inputs. All outputs were requested with transparency; alpha is retained. Project copies are bundled, generated originals remain at their tool output paths. Runtime crops transparent margins and samples pixel sizes; no offline repainting is used.
+
+### keepsake-chests.png
+
+Saved project path: `bin/data/art/keepsake-chests.png`.
+
+Final prompt:
+
+> Use case: stylized-concept. Asset type: two-state sprite sheet for a cozy pixel-art archive story game. Transparent background. One horizontal row of exactly TWO equal rectangular cells, overall canvas 3:1. LEFT: a closed heirloom wooden keepsake chest, RIGHT: the SAME chest with its hinged lid open showing dark burgundy velvet lining, a few folded ivory papers inside. Consistent frontal view with only a slight view of the top, identical wood, scale, and base alignment. Warm walnut wood with intricate grain, carved small leaf details, aged brass corner fittings, brass straps and a beautiful centered keyhole lock. Rounded slightly arched lid, no treasure or gold coins. Authentic detailed 16-bit pixel art, deliberate square pixel clusters and stepped edges, amber highlights, warm dark outlines, no smooth vector shapes. Every chest fits fully inside its own cell with generous transparent margin. Original sprite art readable at about 240x160 game pixels. No text, lettering, numbers, labels, characters, scenery, ground plane or background. No other objects outside the chests.
+
+### keepsake-envelope.png
+
+Saved project path: `bin/data/art/keepsake-envelope.png`.
+
+Final prompt:
+
+> Use case: stylized-concept. Asset type: single detailed letter-envelope sprite for a cozy pixel art game. Genuinely transparent background. A closed antique ivory paper envelope seen straight from above, horizontal 3:2 proportions, with a burgundy wax seal bearing a tiny simple flower, folded triangular flap, slightly worn golden edges, subtle paper fibers, a faded blue postage stamp without lettering in the upper right, a little dried daisy tucked under thin twine. Warm cream, cocoa outlines, terracotta red, muted sage. Authentic hand-crafted 16-bit pixel art with deliberate square clusters, no blur, no smooth vector forms. One isolated envelope centered, full object visible with 10 percent margin, no shadow outside the object. Must read clearly as an envelope both at 32x22 game pixels and at 120x80. No writing, letters, numbers, logos, hands, people, scene, frame or watermark.
+
+### letter-paper.png
+
+Saved project path: `bin/data/art/letter-paper.png`.
+
+Final prompt:
+
+> Use case: stylized-concept. Asset type: blank stationery background for a readable in-game letter, landscape 3:2. Genuinely transparent background outside the paper. A single large landscape sheet of warm ivory old letter paper viewed straight from above. Rich but restrained 16-bit pixel-art edges: softly worn stepped corners, thin golden edge shading, faint folding crease, a tiny pressed daisy and a short sage sprig ONLY in the bottom right corner. The entire central 85 percent must be very light, clean, almost uniform ivory to support dark game-rendered text. Extremely subtle fine paper texture only. One continuous sheet, no boxes or ruled lines, no writing, no symbols, no lettering, no ink marks, no seal, no illustrations in the center. Crisp deliberate square pixels, not a photograph or vector. Wide rectangular paper completely visible with small transparent margins. Cozy original game art.
+
+### archive-sign.png
+
+Saved project path: `bin/data/art/archive-sign.png`.
+
+Final prompt:
+
+> Use case: stylized-concept. Asset type: blank title sign for a cozy pixel-art archive game, wide landscape 3:1, transparent background. One substantial warm dark-walnut hanging wooden plaque with lovely hand-carved curled leaf corners, subtle engraved botanical edging, brass corner caps and two small hanging chains at the top. Warm amber rim highlights, muted sage leaves clustered at the outer corners, one tiny turquoise oval mirror ornament centered on the top rim. Authentic detailed 16-bit pixel art with distinct square clusters and crisp stepped silhouettes. The central 75 percent is a FLAT DARK BROWN EMPTY PANEL reserved for two lines of large cream and gold game-rendered title text. Frame decoration must stay on the outer edges and never cross the center. Entire plaque and chains fully visible with transparent margin. Original art. No words, no letters, no numbers, no logos, no characters, no scene, no watermark. Readable when scaled to 450x150 game pixels.
+
+### Doorbell
+
+`bin/data/audio/doorbell.wav`: original locally synthesized two-note bell (44.1 kHz, 16-bit mono), sine partials with a short attack and exponential decay. No recording, voice, external sound library or network call. Controlled by the cover's Sound on/off toggle. The sound plays once at the scripted arrival cue before tonton's welcome.
+
+The historical `moth.png` sprite is reused for the cover's animated moth. Simple frames, buttons, nameplates and the interactive folded corner remain code-native UI.
