@@ -35,7 +35,9 @@ private:
     std::array<float,3> inkDue{0,0,0};
     std::array<homeward::DigitGuess,3> guesses;
     bool brushing=false,photoOpen=false,cameraPending=false,delivered=false;
-    bool qaMode=false,qaPassed=true,qaCamera=false,qaCameraChecked=false;
+    bool adjustingStrength=false,comparing=false,resumeCamera=false,qaCluesChecked=false;
+    int inspectedHouse=-1;
+    bool qaMode=false,qaPassed=true,qaCamera=false,qaCameraChecked=false,qaCameraResumed=false;
     int cameraFrames=0;
     float qaCameraAt=-1,qaFirstFrameAt=-1;
     bool canvasHasCamera=false;
@@ -58,9 +60,11 @@ private:
     cv::Point lastBrush{},lastInk{},moveFrom{1,7};
     std::map<int,ofTrueTypeFont> fonts;
     int drawScale=1;
-    ofTexture photoTexture,cameraTexture,giftPhoto;
-    ofImage hero,lia,mapArt,buildings,envelopeArt,paperArt,titleArt,moth;
+    ofTexture photoTexture,damagedTexture,cameraTexture,giftPhoto;
+    cv::Mat returnedPhoto;
+    ofImage hero,lia,mapArt,envelopeArt,paperArt,titleArt,moth;
     std::array<ofImage,2> chests;
+    std::array<ofImage,3> houses;
     ofSoundPlayer doorbell;
     ofFbo canvas;
     homeward::Direction lastWave=homeward::Direction::None;
@@ -73,6 +77,8 @@ private:
     void beginEnding();
     void finishChapter();
     void refreshPhoto();
+    void revisitPhoto(int from);
+    void drawHouseDetail();
     void refreshInk(int cell);
     void toggleCamera();
     void stopCamera();

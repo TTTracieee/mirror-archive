@@ -16,31 +16,49 @@ inline constexpr std::array<Direction,4> directions{Direction::Left,Direction::R
 
 enum class Filter {Clean,Contrast,Detail};
 class BrushRepair {
+    struct Edit {std::array<cv::Mat,3> layers;std::array<float,3> strengths;};
     std::array<cv::Mat,3> layers;
-    std::vector<std::array<cv::Mat,3>> history;
+    std::array<float,3> strengths{1.f,.8f,.45f};
+    std::vector<Edit> history;
+    static void blend(const cv::Mat& processed,cv::Mat& result,const cv::Mat& layer,float amount){
+        if(amount<=0||cv::countNonZero(layer)==0)return;
+        cv::Mat mixed;cv::addWeighted(result,1-amount,processed,amount,0,mixed);mixed.copyTo(result,layer);
+    }
 public:
-    cv::Mat damaged,filtered,mask;
+    cv::Mat damaged,mask;
+    // Estimate exposure from observed luminance only; no access to degradation parameters.
+    static cv::Mat autoContrast(const cv::Mat& observed){
+        if(observed.empty()||observed.type()!=CV_8UC3)throw std::invalid_argument("Contrast needs an 8-bit color image");
+        cv::Mat gray,stats;cv::cvtColor(observed,gray,cv::COLOR_BGR2GRAY);cv::medianBlur(gray,stats,3);
+        std::array<int,256> histogram{};
+        for(int y=0;y<stats.rows;++y)for(int x=0;x<stats.cols;++x)++histogram[stats.at<uchar>(y,x)];
+        auto percentile=[&](float fraction){int total=0,target=std::max(1,int(stats.total()*fraction));for(int i=0;i<256;++i){total+=histogram[i];if(total>=target)return i;}return 255;};
+        int low=percentile(.02f),high=percentile(.98f);
+        if(high-low<8)return observed.clone();
+        double gain=std::min(3.,235./(high-low));cv::Mat result;
+        observed.convertTo(result,CV_8U,gain,10-low*gain);return result;
+    }
     void load(const cv::Mat& source){
         cv::Mat faded;cv::GaussianBlur(source,faded,{3,3},.55);faded.convertTo(damaged,CV_8U,.48,64);
         cv::RNG random(208);
         for(size_t i=0;i<damaged.total()/5;++i){int x=random.uniform(0,damaged.cols),y=random.uniform(0,damaged.rows);
             uchar v=random.uniform(0,2)?235:18;damaged.at<cv::Vec3b>(y,x)={v,v,v};}
-        cv::medianBlur(damaged,filtered,3);filtered.convertTo(filtered,CV_8U,1/.48,-64/.48);
         reset();
     }
-    void reset(){for(auto& layer:layers)layer=cv::Mat::zeros(damaged.size(),CV_8U);mask=cv::Mat::zeros(damaged.size(),CV_8U);history.clear();}
-    void beginStroke(){std::array<cv::Mat,3> snapshot;for(int i=0;i<3;++i)snapshot[i]=layers[i].clone();history.push_back(snapshot);if(history.size()>30)history.erase(history.begin());}
-    bool undo(){if(history.empty())return false;layers=history.back();history.pop_back();mask=layers[0]|layers[1]|layers[2];return true;}
+    void reset(){for(auto& layer:layers)layer=cv::Mat::zeros(damaged.size(),CV_8U);mask=cv::Mat::zeros(damaged.size(),CV_8U);strengths={1.f,.8f,.45f};history.clear();}
+    float strength(Filter filter)const{return strengths[int(filter)];}
+    void setStrength(Filter filter,float value){strengths[int(filter)]=std::clamp(value,0.f,1.f);}
+    void beginStroke(){Edit edit;for(int i=0;i<3;++i)edit.layers[i]=layers[i].clone();edit.strengths=strengths;history.push_back(edit);if(history.size()>30)history.erase(history.begin());}
+    bool undo(){if(history.empty())return false;layers=history.back().layers;strengths=history.back().strengths;history.pop_back();mask=layers[0]|layers[1]|layers[2];return true;}
     void stroke(cv::Point from,cv::Point to,int radius=19,Filter filter=Filter::Clean){
         auto& layer=layers[int(filter)];cv::line(layer,from,to,255,radius*2,cv::LINE_8);cv::circle(layer,to,radius,255,cv::FILLED);
         mask=layers[0]|layers[1]|layers[2];
     }
-    cv::Mat image(bool finishAll=false)const{
-        const cv::Mat all=finishAll?cv::Mat(damaged.size(),CV_8U,cv::Scalar(255)):cv::Mat();
+    cv::Mat image()const{
         cv::Mat result=damaged.clone(),processed;
-        cv::medianBlur(result,processed,3);processed.copyTo(result,finishAll?all:layers[0]);
-        result.convertTo(processed,CV_8U,1/.48,-64/.48);processed.copyTo(result,finishAll?all:layers[1]);
-        cv::Mat soft;cv::GaussianBlur(result,soft,{0,0},.8);cv::addWeighted(result,1.5,soft,-.5,0,processed);processed.copyTo(result,finishAll?all:layers[2]);
+        if(cv::countNonZero(layers[0])&&strengths[0]>0){cv::medianBlur(result,processed,3);blend(processed,result,layers[0],strengths[0]);}
+        if(cv::countNonZero(layers[1])&&strengths[1]>0){processed=autoContrast(result);blend(processed,result,layers[1],strengths[1]);}
+        if(cv::countNonZero(layers[2])&&strengths[2]>0){cv::Mat soft;cv::GaussianBlur(result,soft,{0,0},.8);cv::addWeighted(result,2,soft,-1,0,processed);blend(processed,result,layers[2],strengths[2]);}
         return result;
     }
 };

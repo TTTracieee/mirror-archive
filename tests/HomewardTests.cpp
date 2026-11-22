@@ -12,7 +12,9 @@ int main(int argc,char** argv){try{
     check(!photo.empty(),"Family photograph exists");cv::resize(photo,small,{480,320});
     BrushRepair repair;repair.load(small);
     check(cv::norm(repair.image(),repair.damaged,cv::NORM_INF)==0,"Unbrushed photo is genuinely damaged");
-    check(cv::norm(repair.filtered,small,cv::NORM_L1)<cv::norm(repair.damaged,small,cv::NORM_L1)*.65,"Filtering improves actual damaged pixels");
+    BrushRepair full;full.load(small);
+    for(auto tool:{Filter::Clean,Filter::Contrast,Filter::Detail})full.stroke({0,160},{480,160},200,tool);
+    check(cv::norm(full.image(),small,cv::NORM_L1)<cv::norm(full.damaged,small,cv::NORM_L1),"Observation-based filtering improves damaged pixels");
     repair.stroke({0,0},{200,0});
     check(cv::countNonZero(repair.mask)>100,"Brush is clipped safely at photograph edge");
     check(cv::norm(repair.image()(cv::Rect(300,200,50,50)),repair.damaged(cv::Rect(300,200,50,50)),cv::NORM_INF)==0,"Brush leaves remote pixels untouched");
@@ -22,9 +24,25 @@ int main(int argc,char** argv){try{
     repair.undo();check(cv::norm(repair.image(),before,cv::NORM_INF)==0,"Undo restores all filter masks");
     repair.reset();check(cv::countNonZero(repair.mask)==0,"Replay resets restoration");
 
-    auto finished=repair.image(true);
-    check(cv::norm(finished,small,cv::NORM_L1)<cv::norm(repair.damaged,small,cv::NORM_L1),"Returned photo is restored from damaged pixels");
-    check(cv::countNonZero(repair.mask)==0,"Finishing the gift does not overwrite player brush history");
+    for(auto limits:std::array<std::pair<int,int>,3>{{{40,135},{110,180},{20,220}}}){
+        cv::Mat ramp(24,256,CV_8UC3);
+        for(int y=0;y<ramp.rows;++y)for(int x=0;x<ramp.cols;++x){uchar v=limits.first+x*(limits.second-limits.first)/255;ramp.at<cv::Vec3b>(y,x)={v,v,v};}
+        auto corrected=BrushRepair::autoContrast(ramp);cv::Mat gray;cv::cvtColor(corrected,gray,cv::COLOR_BGR2GRAY);double low,high;cv::minMaxLoc(gray,&low,&high);
+        check(high-low>limits.second-limits.first,"Contrast adapts to different observed intensity ranges");
+    }
+    cv::Mat flat(24,24,CV_8UC3,cv::Scalar(100,110,120));
+    check(cv::norm(BrushRepair::autoContrast(flat),flat,cv::NORM_INF)==0,"Flat input stays stable without division by zero");
+    for(auto tool:{Filter::Clean,Filter::Contrast,Filter::Detail}){
+        repair.reset();repair.stroke({150,130},{240,130},16,tool);repair.setStrength(tool,0);
+        check(cv::norm(repair.image(),repair.damaged,cv::NORM_INF)==0,"Zero strength preserves damaged pixels");
+        repair.setStrength(tool,.5);auto medium=repair.image();repair.setStrength(tool,1);auto strong=repair.image();
+        check(cv::norm(medium,repair.damaged,cv::NORM_L1)>0,"Half strength applies a real filter");
+        check(cv::norm(strong,repair.damaged,cv::NORM_L1)>cv::norm(medium,repair.damaged,cv::NORM_L1),"Strength changes the filter's visible effect");
+        check(cv::norm(strong(cv::Rect(350,230,40,40)),repair.damaged(cv::Rect(350,230,40,40)),cv::NORM_INF)==0,"Strength never modifies unpainted regions");
+        repair.beginStroke();repair.setStrength(tool,.1);repair.undo();check(repair.strength(tool)==1,"Undo restores the previous strength");
+    }
+    auto gift=repair.image();auto saved=gift.clone();repair.reset();
+    check(cv::norm(gift,saved,cv::NORM_INF)==0,"Player's returned photo is an independent snapshot");
     auto opening=story::opening(),ending=story::ending();
     check(opening.front().speaker=="You"&&opening.front().narration,"The player introduces their archive without a speaker plate");
     check(!opening[5].narration&&opening[5].speaker=="You","Spoken player dialogue retains its nameplate");
