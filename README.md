@@ -24,15 +24,17 @@ Click **Photo** in the second or third chapter to keep working on it. Your writi
 
 For the camera, hold your hand in the middle first. Move it to one side and wait for the ring to fill. The letter follows a straight path and stops at a fork, corner, house, or dead end. It never turns by itself. Bring your hand back to the middle before choosing another direction. Arrow keys and the arrows in the preview also work.
 
-The box holds a sealed envelope. Click **Open envelope** to find the map inside. Finish the map before turning it over to read the message.
+The box holds a sealed envelope. Click **Open envelope** to find the map inside. The map says **For my sweetheart Tang**. Finish it before turning it over to read **My dear Tang,** and the message on the back.
 
-tonton explains the tools before you use them and cheers when you finish each task. Painting, changing tools, writing, and reaching a corner do not open extra dialogue. Camera instructions appear only on the first start. A wrong password or house can bring a short reminder.
+tonton explains one thing at a time, in one or two short sentences. The photo guide highlights each tool before explaining it. Celebrations have their own dialogue box, followed by the next task and a friendly invitation to start. Painting, changing tools, writing, and reaching a corner do not open extra dialogue. Camera instructions appear only on the first start. A wrong password or house can bring a short reminder.
 
 At the end, Lia receives **the photo you actually repaired**. If you bring the people in the photo back into view, she shares a memory of holding her grandma's hand. The game does not finish the photo for you.
 
 Choose **Keep a copy** on the last screen to save your own photo as a PNG. Pick a folder in the save window. This saves the repaired image, without the game interface.
 
 ![Lia's visit](docs/intro.png)
+
+![One tool at a time](docs/tool-guide.png)
 
 | Repair the photo | Write the password |
 | --- | --- |
@@ -86,9 +88,9 @@ build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa
 build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa-camera
 ```
 
-Current algorithm checks: **85 legacy checks, 903 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
+Current algorithm checks: **85 legacy checks, 1000 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
 
-The latest real-camera check received 44 frames on first start and 30 after returning from photo editing. Both sessions closed successfully; no camera images were saved.
+The latest real-camera check received 41 frames on first start and 16 after returning from photo editing. Both sessions closed successfully; no camera images were saved.
 
 Full-story QA covers painting, strength changes, Original, the sealed envelope and map reveal, handwriting, house views, returning to the photo, maze movement, returning the player's own photo, and saving an identical PNG. Automated maze play uses arrow keys. Real hand play under different lighting still needs user testing.
 

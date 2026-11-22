@@ -4,47 +4,71 @@
 
 namespace story {
 enum class Cue {None,Doorbell,ShowKeepsakes,ReturnPhoto,LiaLeaves};
+enum class Focus {None,Clean,Contrast,Detail,Size,Strength,Original,Ready};
+inline const std::string dedication="For my sweetheart Tang";
+
 struct Speech {
     std::string speaker,words;
     int happy=0;
     Cue cue=Cue::None;
     bool narration=false;
+    Focus focus=Focus::None;
 };
 
 inline std::vector<Speech> opening(){return {
     {"You","I opened Mirror Archive to restore\nold photos, letters, and memories.",0,Cue::None,true},
     {"You","This is my little archive.\ntonton is my helper and my friend.",0,Cue::None,true},
     {"You","Someone is at the door.",0,Cue::Doorbell,true},
-    {"tonton","Hello! Welcome to Mirror Archive.\nCome in. How can we help?",1},
-    {"Lia","I'm Lia. This was my grandma Tang's box.\nShe kept this old photo with it.",0,Cue::ShowKeepsakes},
+    {"tonton","Welcome to Mirror Archive!\nHow can we help?",1},
+    {"Lia","I'm Lia.\nThese belonged to my grandma Tang.",0,Cue::ShowKeepsakes},
     {"You","Please, take your time.\nTell me about her."},
-    {"Lia","She died last month. I miss her.\nI want to know what she kept inside.",1},
-    {"Lia","The password is her first home's address.\nThat is what she told me.\nBut I have never been there."},
+    {"Lia","Grandma died last month.\nI miss her.",1},
+    {"Lia","She said the password was her first\nhome's address, but I've never been there."},
     {"You","I'll take good care of them.\nLet's find that house number."},
-    {"tonton","Clean removes dust. Contrast helps fading.\nDetail makes small edges clearer.\nDrag a brush over the house number.",1},
-    {"tonton","Size changes how wide your brush is.\nStrength changes how much the tool does.\nHold Original to compare. Then try the box."}
+    {"tonton","Let's start with Clean.\nDrag over the photo to remove dust.",1,Cue::None,false,Focus::Clean},
+    {"tonton","Use Contrast to bring back faded ink.",0,Cue::None,false,Focus::Contrast},
+    {"tonton","Use Detail to make small edges clearer.",0,Cue::None,false,Focus::Detail},
+    {"tonton","Use Size to make your brush\nwider or smaller.",0,Cue::None,false,Focus::Size},
+    {"tonton","Use Strength to make the effect\nstronger or softer.",0,Cue::None,false,Focus::Strength},
+    {"tonton","Hold Original to compare your work\nwith the damaged photo.",0,Cue::None,false,Focus::Original},
+    {"tonton","Let's find that house number!",1,Cue::None,false,Focus::Ready}
 };}
 
 inline std::vector<Speech> foundNumber(){return {
-    {"tonton","Nice work! Let's try your number.\nWrite one number in each box.\nCheck the small windows, then press Open.",3}
+    {"tonton","Nice work!",3},
+    {"tonton","Write one number in each box."},
+    {"tonton","Check the small windows before\npressing Open."},
+    {"tonton","Let's try your number!",1}
 };}
 
 inline std::vector<Speech> foundEnvelope(){return {
-    {"tonton","It opened! You did it!\nThere's an envelope inside.\nLet's open it.",3}
+    {"tonton","It opened! You did it!",3},
+    {"tonton","There's an envelope inside.",2},
+    {"tonton","Let's open it!",1}
 };}
 inline std::vector<Speech> foundMap(){return {
-    {"tonton","There's a map inside!\nIt says, 'For little Tang.'\nThat's Lia's grandma!",2},
-    {"tonton","Click a map house to compare the pictures.\nUse Photo if you want to repair more.\nThen press Start camera."}
+    {"tonton","There's a map inside!",2},
+    {"tonton","It says, 'For my sweetheart Tang.'\nThat's Lia's grandma!",1},
+    {"tonton","Click a map house to see it\nbeside your own photo."},
+    {"tonton","Use Photo if you want to keep repairing."},
+    {"tonton","Let's find her home!\nPress Start camera when you're ready.",1}
+};}
+inline std::vector<Speech> cameraGuide(){return {
+    {"tonton","Hold your hand in the middle first."},
+    {"tonton","Move it to one side and wait\nfor the ring to fill."},
+    {"tonton","Bring it back to the middle\nbefore choosing another direction."},
+    {"tonton","Let's give it a try!",1}
 };}
 inline std::vector<Speech> reachedHome(){return {
-    {"tonton","You brought it home! Great work!\nWait... there's writing on the back.",3},
-    {"tonton","Click the folded corner.\nLet's see what it says.",1}
+    {"tonton","You brought it home!\nGreat work!",3},
+    {"tonton","Wait... there's writing on the back."},
+    {"tonton","Let's turn it over.\nClick the folded corner.",1}
 };}
 
 inline std::vector<Speech> ending(bool peopleRestored=false){return {
-    {"Lia","Grandma left a light on for me.\nEven when I came home late.\nNow I know why.",1},
+    {"Lia","Grandma always left a light on for me.\nNow I know why.",1},
     {"You","You do not have to stop missing her.\nYou can keep her love with you."},
-    {"You","Here is the photo I worked on.\nHere. Take it home with the letter.",0,Cue::ReturnPhoto},
+    {"You","Here is the photo I worked on.\nTake it home with the letter.",0,Cue::ReturnPhoto},
     {"Lia",peopleRestored?"I can see them holding hands.\nGrandma held my hand like that, too.":"Thank you for taking care of her photo.\nI will keep it close.",2},
     {"Lia","I'll put them by my bed.\nI'll keep a light on, too.",2},
     {"You","Take care, Lia.\nCome back any time."},
@@ -57,7 +81,7 @@ inline std::vector<Speech> ending(bool peopleRestored=false){return {
 };}
 
 inline const std::string letter=
-    "Dear little Tang,\n\n"
+    "My dear Tang,\n\n"
     "If you get lost, take your time.\n"
     "You will find your way home.\n\n"
     "I will leave the light on for you.\n\n"

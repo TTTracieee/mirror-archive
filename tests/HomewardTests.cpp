@@ -81,9 +81,9 @@ int main(int argc,char** argv){try{
     check(readable>50&&readable>faint*4,"Real filters recover readable contrast from the observation");
     check(cv::norm(faded.image()(cv::Rect(350,200,50,50)),faded.damaged(cv::Rect(350,200,50,50)),cv::NORM_INF)==0,"Clue repair stays inside the player's brush");
     auto number=story::foundNumber(),envelope=story::foundEnvelope(),map=story::foundMap(),arrival=story::reachedHome();
-    check(envelope.size()==1&&envelope[0].words.find("map")==std::string::npos,"The box reveals only an envelope");
+    check(envelope.size()==3&&envelope[1].words.find("envelope")!=std::string::npos&&envelope[1].words.find("map")==std::string::npos,"The box reveals only an envelope");
     check(map.front().words.find("map inside")!=std::string::npos,"Opening the envelope reveals its map");
-    check(arrival.size()==2&&arrival[0].words.find("back")!=std::string::npos,"Only arrival reveals the writing on the back");
+    check(arrival.size()==3&&arrival[1].words.find("back")!=std::string::npos,"Only arrival reveals the writing on the back");
     check(number[0].happy==3&&envelope[0].happy==3&&arrival[0].happy==3,"Each chapter ends with a happy encouragement");
     auto personal=story::ending(true),quiet=story::ending(false);
     check(personal[3].words!=quiet[3].words&&personal[3].words.find("held my hand")!=std::string::npos,"Lia responds to the player's actual family repair");
@@ -99,7 +99,20 @@ int main(int argc,char** argv){try{
     bool playerAfter=false,helperAfter=false;
     for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}
     check(playerAfter&&helperAfter,"The player and helper share the final conversation");
-    for(auto script:{opening,ending,personal,number,envelope,map,arrival})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
+    auto camera=story::cameraGuide();
+    check(story::dedication=="For my sweetheart Tang"&&story::letter.find("My dear Tang,")==0,"Map and letter use the requested affectionate wording");
+    check(number[0].words.find("Write")==std::string::npos&&arrival[0].words.find("back")==std::string::npos,"Celebrations are separate from instructions and story reveals");
+    std::set<story::Focus> highlights;for(auto speech:opening)if(speech.focus!=story::Focus::None)highlights.insert(speech.focus);
+    check(highlights.size()==7,"Each photo tool or setting has its own spotlight, followed by an invitation");
+    for(auto script:{opening,ending,personal,number,envelope,map,arrival,camera})for(auto speech:script){
+        std::istringstream lines(speech.words);std::string line;int count=0;
+        while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the native pixel font");}
+        check(count<=2,"Each dialogue box is at most two short lines");
+        int sentences=0;bool punctuation=false;
+        for(char c:speech.words){bool end=c=='.'||c=='!'||c=='?';if(end&&!punctuation)++sentences;punctuation=end;}
+        check(sentences<=2,"Each dialogue box contains at most two sentences");
+    }
+    for(auto script:{number,envelope,map,camera})check(script.back().words.find("Let's")!=std::string::npos,"Each task starts with a friendly invitation");
 
     Maze maze;auto route=maze.solution();
     std::cout<<"Shortest maze route: "<<route.size()<<" gestures\n";

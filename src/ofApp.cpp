@@ -126,6 +126,7 @@ void ofApp::enterSpeech(){
     }
 }
 void ofApp::nextSpeech(){
+    if(dialogue[speechIndex].focus!=story::Focus::None&&ofGetElapsedTimef()-dialogueAt<.35f)return;
     if(dialogue[speechIndex].cue==story::Cue::Doorbell&&ofGetElapsedTimef()-dialogueAt<.75f)return;
     if(++speechIndex>=dialogue.size()){
         screen=afterDialogue;intro=false;palm.reset();lastPalmStamp=0;
@@ -198,7 +199,7 @@ void ofApp::update(){
     for(int i=0;i<3;++i)if(inkDue[i]>0&&now>=inkDue[i]&&drawingCell!=i){guesses[i]=reader.guess(writing[i]);recognized[i]=guesses[i].digit;inkDue[i]=0;}
     if(screen==Screen::Play&&chapter==2&&moveDuration<=0&&inspectedHouse<0&&cameraTipPending){
         cameraTaught=true;cameraTipPending=false;
-        say({{"tonton","Start in the middle, then hold one side.\nWait for the ring. Come back to middle.\nThe letter stops at forks and corners."}});
+        say(story::cameraGuide());
     }
     if(qaMode)runQA();
 }
@@ -373,7 +374,7 @@ void ofApp::drawMap(bool caption){
     for(int y=1;y<8;++y)for(int x=1;x<12;++x)if(maze.road({x,y})){
         auto p=mapPoint({x,y});for(int i=0;i<5;++i){int dx=(x*7+y*3+i*5)%11-5,dy=(x*3+y*7+i*3)%11-5;rect(p.x+dx,p.y+dy,2,1,ofColor(218,195,145));}
     }
-    if(caption)textInBox("For little Tang",{23,41,444,19},ink);
+    if(caption)textInBox(story::dedication,{23,41,444,19},ink);
     for(size_t i=1;i<trail.size();++i){auto a=mapPoint(trail[i-1]),b=mapPoint(trail[i]);if(cv::norm(trail[i]-trail[i-1])==1)line(a.x,a.y,b.x,b.y,ofColor(170,98,72));}
     // A bridge and a tiny pond are scenery; road topology remains explicit.
     rect(211,271,23,17,ofColor(103,158,163));for(int y=271;y<288;y+=4)rect(211,y,23,1,ofColor(161,190,167));
@@ -429,25 +430,55 @@ void ofApp::drawSealedEnvelope(){
     if(screen==Screen::Envelope)button("Open envelope",openEnvelopeButton,true);
 }
 
+ofRectangle ofApp::dialogueBox()const{
+    auto focus=dialogue[speechIndex].focus;
+    return {18,focus!=story::Focus::None&&focus!=story::Focus::Ready?48.f:278.f,604,95};
+}
+ofRectangle ofApp::focusArea()const{
+    switch(dialogue[speechIndex].focus){
+        case story::Focus::Clean:return filterButton(0);
+        case story::Focus::Contrast:return filterButton(1);
+        case story::Focus::Detail:return filterButton(2);
+        case story::Focus::Size:return {278,311,166,28};
+        case story::Focus::Strength:return {278,343,166,31};
+        case story::Focus::Original:return beforeButton;
+        default:return {};
+    }
+}
 void ofApp::drawDialogue(){
-    if(intro)drawIntro();
+    const auto& speech=dialogue[speechIndex];
+    if(speech.focus!=story::Focus::None)drawPlay();
+    else if(intro)drawIntro();
     else if(outro)drawOutro();
     else if(chapter==2&&!delivered&&!envelopeOpened)drawSealedEnvelope();
     else drawPlay();
-    rect(0,0,W,H,ofColor(28,21,27,50));
-    const auto& speech=dialogue[speechIndex];
-    paperFrame(18,278,604,95,paper);
-    if(!speech.narration){paperFrame(38,265,104,24,ofColor(114,72,49));textInBox(speech.speaker,{38,265,104,24},light);}
-    rasterText(speech.words,38,313,ink,true);
-    if(!speech.narration&&speech.speaker!="You")rect(507,290,1,70,ofColor(208,179,130));
+    auto target=focusArea();auto shade=ofColor(28,21,27,90);
+    if(target.width>0){
+        target.x-=4;target.y-=4;target.width+=8;target.height+=8;
+        rect(0,0,W,target.y,shade);rect(0,target.y,target.x,target.height,shade);
+        rect(target.getRight(),target.y,W-target.getRight(),target.height,shade);
+        rect(0,target.getBottom(),W,H-target.getBottom(),shade);
+        // Crisp pixel brackets leave the highlighted control unobscured.
+        auto glow=ofColor(255,221,137,210+int(35*std::sin(ofGetElapsedTimef()*4)));
+        for(int side:{0,1})for(int edge:{0,1}){
+            int x=side?target.getRight()-7:target.x,y=edge?target.getBottom()-2:target.y;
+            rect(x,y,7,2,glow);rect(side?target.getRight()-2:target.x,edge?target.getBottom()-7:target.y,2,7,glow);
+        }
+    }else rect(0,0,W,H,ofColor(28,21,27,50));
+    auto box=dialogueBox();int y=box.y;
+    paperFrame(box.x,y,box.width,box.height,paper);
+    if(!speech.narration){paperFrame(38,y-13,104,24,ofColor(114,72,49));textInBox(speech.speaker,{38,float(y-13),104,24},light);}
+    float age=ofGetElapsedTimef()-dialogueAt;
+    if(speech.focus==story::Focus::None||age>=.3f)rasterText(speech.words,38,y+35,ink,true);
+    if(!speech.narration&&speech.speaker!="You")rect(507,y+12,1,70,ofColor(208,179,130));
     if(speech.speaker=="tonton"){
-        float age=ofGetElapsedTimef()-dialogueAt;int shake=age<.35&&speech.happy?int(std::sin(age*65)*2):0;
-        pixel::tonton(562+shake,330,2,ofGetElapsedTimef(),speech.happy);
+        int shake=age<.35&&speech.happy?int(std::sin(age*65)*2):0;
+        pixel::tonton(562+shake,y+52,2,ofGetElapsedTimef(),speech.happy);
     }else if(speech.speaker=="Lia"){
         int pose=ofClamp(speech.happy,0,2);float cell=lia.getWidth()/3;
-        ofSetColor(255);lia.getTexture().drawSubsection(520,282,88,88,cell*pose,0,cell,lia.getHeight());
+        ofSetColor(255);lia.getTexture().drawSubsection(520,y+4,88,88,cell*pose,0,cell,lia.getHeight());
     }
-    int dot=int(ofGetElapsedTimef()*2)%3;for(int i=0;i<3;++i)rect(483+i*5,359,2,2,i==dot?wood:ofColor(210,175,120));
+    int dot=int(ofGetElapsedTimef()*2)%3;for(int i=0;i<3;++i)rect(483+i*5,y+81,2,2,i==dot?wood:ofColor(210,175,120));
 }
 
 void ofApp::drawLetter(){
@@ -456,7 +487,7 @@ void ofApp::drawLetter(){
     ofPushMatrix();ofTranslate(320,0);ofScale(flip,1);ofTranslate(-320,0);
     drawProp(paperArt,letterArea);
     if(!letterOpened||age<.3f){
-        textInBox("For little Tang",{176,58,288,25},ink);
+        textInBox(story::dedication,{176,58,288,25},ink);
         ofPushMatrix();ofTranslate(136,56);ofScale(.75f,.75f);drawMap(false);ofPopMatrix();
         int lift=2+int((1+std::sin(ofGetElapsedTimef()*3))*2);
         float fit=std::min(letterArea.width/paperArt.getWidth(),letterArea.height/paperArt.getHeight());
@@ -509,7 +540,7 @@ void ofApp::drawMagnifier(glm::vec2 p){
 void ofApp::draw(){
     auto v=mirror::pixelViewport(ofGetWidth(),ofGetHeight());renderCanvas(v.scale);
     ofBackground(shadow);ofSetColor(255);canvas.draw(v.x,v.y);
-    auto p=logical(ofGetMouseX(),ofGetMouseY());bool magnifier=(screen==Screen::Home&&ofRectangle(0,0,W,H).inside(p))||(screen==Screen::Dialogue&&ofRectangle(18,266,604,107).inside(p));
+    auto p=logical(ofGetMouseX(),ofGetMouseY());bool magnifier=(screen==Screen::Home&&ofRectangle(0,0,W,H).inside(p))||(screen==Screen::Dialogue&&dialogueBox().inside(p));
     if(magnifier){ofHideCursor();ofPushMatrix();ofTranslate(v.x,v.y);ofScale(v.scale,v.scale);drawMagnifier(p);ofPopMatrix();}else ofShowCursor();
 }
 void ofApp::pointerDown(glm::vec2 p){
@@ -521,7 +552,7 @@ void ofApp::pointerDown(glm::vec2 p){
         return;
     }
     if(screen==Screen::Info){if(infoBack.inside(p))screen=Screen::Home;return;}
-    if(screen==Screen::Dialogue){if(ofRectangle(18,266,604,107).inside(p))nextSpeech();return;}
+    if(screen==Screen::Dialogue){if(dialogueBox().inside(p))nextSpeech();return;}
     if(screen==Screen::Envelope){
         if(homeButton.inside(p)){screen=Screen::Home;return;}
         if(envelopeArea.inside(p)||openEnvelopeButton.inside(p))openEnvelope();return;
@@ -617,6 +648,7 @@ void ofApp::runQA(){
     auto capture=[&](const std::string& name,int scale=2){if(hand.running||canvasHasCamera)return;renderCanvas(scale);auto folder=ofFilePath::getCurrentExeDir()+"../../../../qa/";ofDirectory::createDirectory(folder,true,true);ofPixels pixels;canvas.readToPixels(pixels);ofSaveImage(pixels,folder+name);};
     if(screen==Screen::Dialogue){
         auto cue=dialogue[speechIndex].cue;float age=ofGetElapsedTimef()-dialogueAt;
+        if(dialogue[speechIndex].focus!=story::Focus::None&&age<.5f)return;
         if((cue==story::Cue::ShowKeepsakes&&age<.65f)||(cue==story::Cue::Doorbell&&age<1.f)||(cue==story::Cue::ReturnPhoto&&age<1.f))return;
         capture("qa-dialogue-"+std::to_string(chapter)+"-"+std::to_string(speechIndex)+"-"+std::to_string(dialogue[speechIndex].happy)+".png");
         if(intro&&speechIndex==0){capture("qa-narration.png");checkQA(bool(dialogue[speechIndex].narration),__LINE__);}
@@ -627,8 +659,15 @@ void ofApp::runQA(){
         if(!intro&&!outro&&chapter==2&&!delivered&&!envelopeOpened){checkQA(afterDialogue==Screen::Envelope,__LINE__);capture("qa-open-box.png");}
         if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Click a map house")!=std::string::npos&&!delivered)capture("qa-photo-guide.png");
         if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Hold your hand")!=std::string::npos&&!delivered)capture("qa-camera-guide.png");
-        if(delivered&&!outro&&speechIndex==0)capture("qa-turn-guide.png");
-        click({400,350});return;
+        if(delivered&&!outro&&speechIndex==0)capture("qa-map-success.png");
+        if(delivered&&!outro&&speechIndex==2)capture("qa-turn-guide.png");
+        if(dialogue[speechIndex].focus!=story::Focus::None){
+            auto target=focusArea();auto box=dialogueBox();
+            checkQA(target.width==0||box.getBottom()<target.y,__LINE__);
+            capture("qa-tool-guide-"+std::to_string(int(dialogue[speechIndex].focus))+".png");
+        }
+        if(chapter==1&&speechIndex==0)capture("qa-photo-success.png");
+        click(dialogueBox().getCenter());return;
     }
 
     if(screen==Screen::Envelope){

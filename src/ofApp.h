@@ -118,6 +118,8 @@ private:
     void drawMap(bool caption=true);
     void drawHouse(int x,int y,int kind);
     void drawDialogue();
+    ofRectangle dialogueBox() const;
+    ofRectangle focusArea() const;
     void drawLetter();
     void drawComplete();
     void button(const std::string& text,const ofRectangle& rect,bool active=false,int scale=2);
