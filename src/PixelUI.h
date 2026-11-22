@@ -35,6 +35,7 @@ inline std::array<unsigned char,7> glyph(char value) {
         case '.':return {0,0,0,0,0,6,6}; case ',':return {0,0,0,0,6,6,4};
         case '!':return {4,4,4,4,4,0,4}; case '?':return {14,17,1,2,4,0,4};
         case '<':return {1,2,4,8,4,2,1}; case '>':return {16,8,4,2,4,8,16};
+        case '^':return {4,14,21,4,4,4,4};
         case '[':return {14,8,8,8,8,8,14}; case ']':return {14,2,2,2,2,2,14};
         case '(':return {2,4,8,8,8,4,2}; case ')':return {8,4,2,2,2,4,8};
         case 39:return {4,4,2,0,0,0,0}; case ' ':return {};

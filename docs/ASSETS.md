@@ -1,5 +1,18 @@
 # Asset provenance
 
+## Current story: A Light Left On (2026-11-22)
+
+- `bin/data/art/family-home.png`: generated with the built-in OpenAI imagegen tool, new original image, no reference input. Original retained in the tool output directory; a project copy is bundled. The runtime samples the image and draws the 208 plaque before degradation and filtering.
+- `src/ofApp.cpp`: original code-drawn road topology, trees, paper UI, envelope, and folding-letter animation. Generated house sprites and terrain are listed below. The red roof, lantern, teal door and flower pots connect the photo and map.
+- `bin/data/digits/digits.png`: official OpenCV 4.10.0 sample dataset, https://raw.githubusercontent.com/opencv/opencv/4.10.0/samples/data/digits.png . Upstream Apache-2.0 license included as `bin/data/digits/LICENSE-OpenCV.txt`.
+- Current camera input uses OpenCV capture and the official MediaPipe hand model below. No camera image is saved or uploaded. Optical flow remains only as a historical regression implementation.
+- Historical town-photo and older scenes below remain regression fixtures, not current story artwork.
+
+Final image-generation prompt (builtin mode):
+
+> Use case: illustration-story. Asset type: original old family photograph scene for a cozy pixel-art restoration game. Landscape 3:2. Authentic detailed 16-bit pixel art, crisp square pixels, no blur, no UI or border. A little East Asian girl with short dark hair and a yellow dress holds her mother's hand outside their small childhood home. Mother wears a teal dress and has dark hair in a bun. Warm, tender quiet memory, both facing the camera. The house is a small cream-plaster cottage with a RED terracotta triangular roof, a central dark teal front door, one glowing brass porch lantern beside the door, two blue windows, and terracotta pots of white daisies. Cobblestone path, low wooden fence, flowering shrubs, a leafy tree to the left, a small stream and wooden bridge to the right. Full house visible, large and central. A small blank ivory rectangular address plaque ABOVE the door (no text; game draws its own numbers). Rich hand-crafted pixel clusters, intentional dithering, autumn ochre grass, sage foliage, warm amber lighting. Charming and intimate, no additional people, no pigs, no lettering, no logos, no watermark. At 480px wide the house and mother and daughter should read clearly.
+
+
 ## Pixel cottage
 
 - Asset: `bin/data/art/pixel-cottage.png`
@@ -17,11 +30,11 @@ Final prompt:
 - `src/PixelUI.h`: original 5×7 bitmap alphabet, sprites and wooden UI frames.
 - `src/LevelFactory.h`: runtime nearest-neighbor scene sampling, damaged observations, reference crop and alpha-composited film sequence.
 - `docs/*.png`: actual running-app captures, not mockups.
-- No system font files are required or redistributed.
+- No system font files are redistributed. The current body font is the bundled OFL Departure Mono listed below.
 
 ## Dependencies
 
-openFrameworks and OpenCV are external build dependencies. Their source archives, binaries and licenses remain in the locally installed openFrameworks distribution. No analytics, runtime network requests or microphone access is used. The current game optionally uses a local webcam in chapter two.
+openFrameworks and OpenCV are external build dependencies. Their source archives, binaries and licenses remain in the locally installed openFrameworks distribution. No analytics, runtime network requests or microphone access is used. The current story optionally uses a local webcam in chapter three.
 
 ## Connected story scenes (2026-11-22)
 
@@ -60,7 +73,7 @@ Full prompt:
 > Use case: stylized-concept. Game sprite asset, a single beautifully detailed small golden-ivory archive moth on a genuinely transparent background. Front/top view with two wings spread symmetrically left and right, wings mostly horizontal, delicate scalloped edges, amber eye spots and dark cocoa vein patterns, a little teal thorax, two antennae. Original 16-bit pixel art matching a cozy magical greenhouse mystery game. Deliberate crisp square pixel clusters; no smooth antialiasing, no painterly blur. Rich, stable non-repeating wing texture that will remain readable at approximately 64 by 44 pixels in the game. Centered single moth filling most of the canvas with a little transparent padding. No glow, shadow outside the body, background, lettering, logo, frame, sprite sheet, or other objects.
 
 
-## Town photograph and tonton (current three-chapter story)
+## Historical town photograph and tonton
 
 - Asset: `bin/data/art/town-photo.png`; generated 2026-11-22 using the built-in imagegen tool (`builtin`), new image, no reference inputs. Original generation retained at the tool destination; project has its own copy.
 - Runtime nearest-neighbor sampling and overlapping crops in `ArchiveGame.h`; the exhibit is computed from registered scans.
@@ -78,3 +91,35 @@ Final imagegen prompt:
 - Model documentation: https://ai.google.dev/edge/mediapipe/solutions/vision/hand_landmarker
 - MediaPipe SDK: https://github.com/google-ai-edge/mediapipe (Apache-2.0); upstream license is retained in `bin/data/hand/LICENSE-MediaPipe.txt`, and package notices remain in the Python environment. The model is distributed with the official MediaPipe solution; see the linked model documentation and upstream license.
 - Python dependency pins are in `requirements-camera.txt`; installation environment is excluded from Git. No camera images are included in this repository.
+
+## Interface refresh: Lia and the paper map (2026-11-22)
+
+All three assets: mode `builtin`, generated by OpenAI imagegen with no reference-image input. Originals remain at the generation output destination; project copies are bundled. Runtime nearest-neighbor sampling and sprite cropping preserve crisp logical pixels. These are original assets, not extracted game artwork.
+
+### lia-portraits.png
+
+Project asset: `bin/data/art/lia-portraits.png`. Transparent background: true.
+
+Full final prompt:
+
+> Use case: illustration-story. Asset type: original pixel-art character portrait expression sheet for a cozy story game, transparent background. A single horizontal row of THREE equally sized square portrait cells, no borders. SAME young adult woman Lia in every cell: chestnut brown shoulder-length bob, warm brown eyes, cream blouse, burgundy knitted cardigan, tiny daisy hairclip, gentle approachable face, three-quarter bust facing slightly left. Cell 1 calm attentive, cell 2 sad reflective eyes, cell 3 relieved warm small smile. Real detailed 16-bit RPG pixel portrait art: deliberate square pixel clusters, beautiful shading, strong warm palette, charming expressive eyes, crisp edges, not vector, not a block mannequin. Each cell centered and fully contained with 10 percent margin, perfectly aligned equal scale, equal 1/3 canvas width, head and shoulders shown. Transparent background throughout. No text, no letters, no symbols, no logos, no other objects. Wide 3:1 sheet. Suitable for sampling each portrait at 96x96 pixels. Original character, no copied game characters.
+
+### garden-map.png
+
+Project asset: `bin/data/art/garden-map.png`. Transparent background: false.
+
+Full final prompt:
+
+> Use case: stylized-concept. Asset type: countryside terrain background for a playable old-paper maze, landscape 3:2. Beautiful intricate authentic 16-bit pixel art viewed straight from above like a charming illustrated village map. An aged folded parchment sheet fills the entire image, with an illustrated soft sage meadow over its middle 85 percent. Delicate hand drawn grassy tufts, small white daisies, tiny ochre leaves, gentle dotted texture; keep central terrain LOW CONTRAST and fairly open because the game will draw all roads and houses over it. Rich detailed scenery concentrated around the outer edges: mossy rounded rocks, miniature leafy trees with variegated foliage, short fence segments, little flower beds, garden pots, a narrow blue creek along far right margin, corner ponds with lily pads. Cream paper visible at outer border, subtle vertical and horizontal paper fold marks. Warm vintage sage, olive, terracotta, faded teal, amber colors. Crisp intentional square pixel clusters, no soft blur. No paths, roads, buildings, maze walls, text, numbers, UI, frame, characters, logos. This is supporting terrain, not a completed maze. Original art, no borrowed game assets.
+
+### village-buildings.png
+
+Project asset: `bin/data/art/village-buildings.png`. Transparent background: true.
+
+Full final prompt:
+
+> Use case: stylized-concept. Asset type: three original village building sprites for cozy 16-bit pixel art map, transparent background. Horizontal 3:1 sheet with exactly THREE equally spaced square cells. All front-facing slightly top-down RPG buildings, same small scale, each entirely within its third, centered, 12 percent transparent margin. Left cell: cream cottage with red terracotta tiled roof, central dark teal door, two blue windows, brass glowing porch lamp to right of door and two terracotta pots of white daisies. Middle: charming bakery with muted blue slate roof, striped cream and burgundy awning, basket of bread and tiny blue window. Right: small village post office with dusty violet roof, teal door, brass mail slot, a red mailbox, a flower planter. Intricate crisp pixel clusters, rich warm texture, shaded tiles, bricks, tiny weathered wood details. Each house reads clearly at 64x64 pixels. No labels, numbers, words or letters anywhere. No ground tile, shadows outside sprites, UI, scene background, people or logos. Transparent cutout sprites, not a screenshot.
+
+### Departure Mono
+
+`bin/data/fonts/DepartureMono-Regular.otf` and `OFL.txt`: Departure Mono 1.500 by Helena Zhang, SIL Open Font License 1.1. Official source: https://github.com/rektdeckard/departure-mono/releases/tag/v1.500 . Downloaded from the author's `DepartureMono-1.500.zip` release. The design is based on an 11px grid. The game rasterizes only at exact 11px multiples into a display-resolution FBO (e.g. 33px dialogue in 2x output), without resampling text through the low-resolution art grid. Antialiasing is disabled. The prior Pixelify Sans experiment was removed. Title bitmap font remains original code. Historical no-additional-font statements above do not apply to this refresh.

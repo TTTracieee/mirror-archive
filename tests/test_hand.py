@@ -19,6 +19,20 @@ def landmarks(gap, scale=1):
 
 
 class HandTests(unittest.TestCase):
+    def test_palm_position_and_loss(self):
+        palm = tracker.PalmFilter()
+        self.assertEqual(palm.update(landmarks(.12)), (.5, .5))
+        points = landmarks(.12)
+        for point in points:
+            point.x += .2
+        self.assertAlmostEqual(palm.update(points)[0], .59)
+        self.assertIsNone(palm.update(None))
+        self.assertAlmostEqual(palm.update(points)[0], .7)
+
+    def test_palm_ignores_finger_pose(self):
+        palm = tracker.PalmFilter()
+        self.assertEqual(palm.update(landmarks(.12)), palm.update(landmarks(.02)))
+
     def test_pinch_hysteresis(self):
         pinch = tracker.PinchFilter()
         self.assertEqual(pinch.update(landmarks(.12))[2], 0)

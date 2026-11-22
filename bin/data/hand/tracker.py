@@ -1,4 +1,4 @@
-"""Offline camera worker. Stdout is a line protocol, never camera images."""
+"""Offline palm tracking. Preview JPEGs travel only over the local process pipe."""
 import argparse
 import math
 import os
@@ -29,6 +29,24 @@ class PinchFilter:
         else:
             self.position = tuple(a * .6 + b * .4 for a, b in zip(self.position, raw))
         return (*self.position, int(self.closed))
+
+
+class PalmFilter:
+    def __init__(self):
+        self.position = None
+
+    def update(self, points):
+        if not points:
+            self.position = None
+            return None
+        ids = (0, 5, 9, 13, 17)
+        raw = tuple(sum(getattr(points[i], axis) for i in ids) / len(ids)
+                    for axis in ("x", "y"))
+        if self.position is None:
+            self.position = raw
+        else:
+            self.position = tuple(a * .55 + b * .45 for a, b in zip(self.position, raw))
+        return self.position
 
 
 def main():
@@ -62,7 +80,8 @@ def main():
             return
         camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        pinch = PinchFilter()
+        palm = PalmFilter()
+        last_preview = 0.0
         print("READY", flush=True)
         try:
             while True:
@@ -70,22 +89,25 @@ def main():
                 if not ok:
                     print("ERROR CAMERA_READ", flush=True)
                     break
-                frame = cv2.cvtColor(cv2.flip(frame, 1), cv2.COLOR_BGR2RGB)
-                image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+                frame = cv2.resize(cv2.flip(frame, 1), (320, 240))
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 result = detector.detect_for_video(image, time.monotonic_ns() // 1000000)
                 if args.camera_probe:
                     print(f"CAMERA_OK hands={len(result.hand_landmarks)}", flush=True)
                     break
                 points = result.hand_landmarks[0] if result.hand_landmarks else None
-                state = pinch.update(points)
+                state = palm.update(points)
+                stamp = time.monotonic()
                 if state:
-                    # Expand the central camera area into the game viewport.
-                    x = max(0., min(1., (state[0] - .12) / .76))
-                    y = max(0., min(1., (state[1] - .12) / .76))
-                    landmarks = " ".join(f"{p.x:.4f} {p.y:.4f}" for p in points)
-                    print(f"HAND {x:.4f} {y:.4f} {state[2]} {landmarks}", flush=True)
+                    print(f"PALM {stamp:.6f} {state[0]:.5f} {state[1]:.5f}", flush=True)
                 else:
-                    print("LOST", flush=True)
+                    print(f"LOST {stamp:.6f}", flush=True)
+                if stamp - last_preview >= .10:
+                    ok, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 65])
+                    if ok:
+                        print("FRAME " + jpeg.tobytes().hex(), flush=True)
+                    last_preview = stamp
         finally:
             camera.release()
 
