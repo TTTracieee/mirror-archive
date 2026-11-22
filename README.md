@@ -88,9 +88,9 @@ build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa
 build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa-camera
 ```
 
-Current algorithm checks: **85 legacy checks, 1066 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
+Current algorithm checks: **789 story checks, 5 viewport checks, and 2 Python palm tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
 
-The latest real-camera check received 36 frames on first start and 32 after closing the photo view. Both sessions closed successfully; no camera images were saved.
+The latest real-camera check received 22 frames on first start and 19 after closing the photo view. Both sessions closed successfully; no camera images were saved.
 
 Full-story QA covers painting, strength changes, Original, the sealed envelope and map reveal, handwriting, the read-only photo view, blocked clicks behind the view, maze movement, returning the player's own photo, and saving an identical PNG. Automated maze play uses arrow keys. Real hand play under different lighting still needs user testing.
 
@@ -101,8 +101,11 @@ Full-story QA covers painting, strength changes, Original, the sealed envelope a
 - `src/HomewardGame.h`: photo tools, digit reading, hand input rules, and maze paths.
 - `src/HandInput.h`, `bin/data/hand/tracker.py`: the local camera process.
 - `bin/data/`: artwork, font, sound, digit samples, and the hand model.
-- `tests/`: algorithm and interaction checks. Older modules remain for regression checks.
+- `tests/`: checks for the current game, display scaling, and palm smoothing.
+- `.clang-format`: the shared C++ format (four-space indentation and a 100-column limit).
 
-[Technical notes](docs/TECHNICAL.md) · [Demo guide — spoilers](docs/DEMO.md) · [Art sources and prompts](docs/ASSETS.md)
+Unused prototype levels, optical-flow controls, and pinch input have been removed. The current game rules, tool settings, artwork, and dialogue are unchanged by this cleanup.
 
-The course PDF report and online demo video must be prepared separately.
+[PDF report](report/MiniProject_Report.pdf) · [LaTeX source](report/MiniProject_Report.tex) · [Technical notes](docs/TECHNICAL.md) · [Demo guide — spoilers](docs/DEMO.md) · [Art sources and prompts](docs/ASSETS.md)
+
+The demo video will be added after recording. See [report instructions](report/README.md) to add its link and rebuild the PDF.

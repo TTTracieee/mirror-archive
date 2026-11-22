@@ -33,34 +33,6 @@ class HandTests(unittest.TestCase):
         palm = tracker.PalmFilter()
         self.assertEqual(palm.update(landmarks(.12)), palm.update(landmarks(.02)))
 
-    def test_pinch_hysteresis(self):
-        pinch = tracker.PinchFilter()
-        self.assertEqual(pinch.update(landmarks(.12))[2], 0)
-        self.assertEqual(pinch.update(landmarks(.06))[2], 1)
-        self.assertEqual(pinch.update(landmarks(.09))[2], 1)
-        self.assertEqual(pinch.update(landmarks(.12))[2], 0)
-
-    def test_distance_invariance(self):
-        for scale in [.5, 1, 2]:
-            pinch = tracker.PinchFilter()
-            self.assertEqual(pinch.update(landmarks(.06, scale))[2], 1)
-            self.assertEqual(pinch.update(landmarks(.13, scale))[2], 0)
-
-    def test_loss_cancels_and_resets(self):
-        pinch = tracker.PinchFilter()
-        pinch.update(landmarks(.06))
-        self.assertIsNone(pinch.update(None))
-        self.assertFalse(pinch.closed)
-        self.assertIsNone(pinch.position)
-
-    def test_cursor_smoothing(self):
-        pinch = tracker.PinchFilter()
-        pinch.update(landmarks(.12))
-        points = landmarks(.12)
-        for point in points:
-            point.x += .1
-        self.assertAlmostEqual(pinch.update(points)[0], .54)
-
 
 if __name__ == "__main__":
     unittest.main()

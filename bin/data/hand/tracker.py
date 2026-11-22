@@ -1,34 +1,9 @@
 """Offline palm tracking. Preview JPEGs travel only over the local process pipe."""
 import argparse
-import math
 import os
 from pathlib import Path
 import sys
 import time
-
-
-class PinchFilter:
-    def __init__(self):
-        self.closed = False
-        self.position = None
-
-    def update(self, points):
-        if not points:
-            self.closed = False
-            self.position = None
-            return None
-        palm = max(math.hypot(points[5].x - points[17].x,
-                              points[5].y - points[17].y), .025)
-        ratio = math.hypot(points[4].x - points[8].x,
-                           points[4].y - points[8].y) / palm
-        self.closed = ratio < (.55 if self.closed else .35)
-        raw = ((points[4].x + points[8].x) / 2,
-               (points[4].y + points[8].y) / 2)
-        if self.position is None:
-            self.position = raw
-        else:
-            self.position = tuple(a * .6 + b * .4 for a, b in zip(self.position, raw))
-        return (*self.position, int(self.closed))
 
 
 class PalmFilter:

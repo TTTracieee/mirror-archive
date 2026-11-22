@@ -215,12 +215,14 @@
         "E4B69E1D0A3A1BDC003C02F2",
         "E4B69E1E0A3A1BDC003C02F2",
         "E4B69E1F0A3A1BDC003C02F2",
-        "MA0000000000000000000000",
-        "MA0000000000000000000001",
-        "MA0000000000000000000002",
         "MA0000000000000000000100",
         "MA0000000000000000000101",
-        "CA0000000000000000000001"
+        "CA0000000000000000000001",
+        "MA0000000000000000000200",
+        "MA0000000000000000000201",
+        "MA0000000000000000000202",
+        "MA0000000000000000000203",
+        "MA0000000000000000000204"
       ],
       "isa": "PBXGroup",
       "path": "src",
@@ -284,27 +286,6 @@
       "path": "Project.xcconfig",
       "sourceTree": "<group>"
     },
-    "MA0000000000000000000000": {
-      "isa": "PBXFileReference",
-      "lastKnownFileType": "sourcecode.cpp.h",
-      "name": "VisionEngine.h",
-      "path": "src/VisionEngine.h",
-      "sourceTree": "SOURCE_ROOT"
-    },
-    "MA0000000000000000000001": {
-      "isa": "PBXFileReference",
-      "lastKnownFileType": "sourcecode.cpp.h",
-      "name": "GameModel.h",
-      "path": "src/GameModel.h",
-      "sourceTree": "SOURCE_ROOT"
-    },
-    "MA0000000000000000000002": {
-      "isa": "PBXFileReference",
-      "lastKnownFileType": "sourcecode.cpp.h",
-      "name": "LevelFactory.h",
-      "path": "src/LevelFactory.h",
-      "sourceTree": "SOURCE_ROOT"
-    },
     "MA0000000000000000000100": {
       "isa": "PBXFileReference",
       "lastKnownFileType": "sourcecode.cpp.h",
@@ -317,6 +298,41 @@
       "lastKnownFileType": "sourcecode.cpp.h",
       "name": "PixelUI.h",
       "path": "src/PixelUI.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000200": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "HomewardGame.h",
+      "path": "src/HomewardGame.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000201": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "HandInput.h",
+      "path": "src/HandInput.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000202": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "StoryScript.h",
+      "path": "src/StoryScript.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000203": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "Tonton.h",
+      "path": "src/Tonton.h",
+      "sourceTree": "SOURCE_ROOT"
+    },
+    "MA0000000000000000000204": {
+      "isa": "PBXFileReference",
+      "lastKnownFileType": "sourcecode.cpp.h",
+      "name": "CameraAccess.h",
+      "path": "src/CameraAccess.h",
       "sourceTree": "SOURCE_ROOT"
     }
   },
