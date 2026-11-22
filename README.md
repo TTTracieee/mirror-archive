@@ -2,7 +2,7 @@
 
 A small pixel-art story made for the **CityUHK CS4187 Mini Project**.
 
-You run Mirror Archive, a place that repairs old photos and keepsakes. Your helper is a little pig named **tonton**. One evening, Lia brings her late grandma Tang's photo and a locked box. Help her find the memory inside.
+You run Mirror Archive, a place that repairs old photos and keepsakes. Your helper is a little pig named **tonton**. One evening, Lia brings her late grandma Tang's photo and a locked box. She misses her grandma and wants to know what she left inside. Help her follow the clues and bring that memory home.
 
 Built with **openFrameworks, OpenCV, and MediaPipe**. No physical props are needed.
 
@@ -88,7 +88,7 @@ build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa
 build/Build/Products/Release/MirrorArchive.app/Contents/MacOS/MirrorArchive --qa-camera
 ```
 
-Current algorithm checks: **85 legacy checks, 1000 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
+Current algorithm checks: **85 legacy checks, 1066 story checks, and 6 Python tests passed**. The digit reader scored **2369 / 2500 (94.76%)** on held-out samples. It also passed the mouse-written password and nine two-loop versions of 8. These results do not guarantee every person's handwriting will be read correctly.
 
 The latest real-camera check received 41 frames on first start and 16 after returning from photo editing. Both sessions closed successfully; no camera images were saved.
 

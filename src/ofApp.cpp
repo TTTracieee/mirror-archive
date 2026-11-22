@@ -194,7 +194,7 @@ void ofApp::update(){
     if(chapter==2&&(screen==Screen::Play||screen==Screen::Dialogue))updateCamera(now);
     if(moveDuration>0&&screen==Screen::Play&&now>=moveAt+moveDuration){moveDuration=0;
         if(maze.solved())finishChapter();
-        else if(maze.house(maze.position)&&!wrongHomeHint){wrongHomeHint=true;say({{"tonton","This looks different from the photo.\nLet's compare them again."}});}
+        else if(maze.house(maze.position)&&!wrongHomeHint){wrongHomeHint=true;say(story::wrongHouse());}
     }
     for(int i=0;i<3;++i)if(inkDue[i]>0&&now>=inkDue[i]&&drawingCell!=i){guesses[i]=reader.guess(writing[i]);recognized[i]=guesses[i].digit;inkDue[i]=0;}
     if(screen==Screen::Play&&chapter==2&&moveDuration<=0&&inspectedHouse<0&&cameraTipPending){
@@ -596,7 +596,7 @@ void ofApp::pointerDown(glm::vec2 p){
             for(int i=0;i<3;++i)if(inkDue[i]>0){guesses[i]=reader.guess(writing[i]);recognized[i]=guesses[i].digit;inkDue[i]=0;}
             if(recognized==std::array<int,3>{2,0,8})finishChapter();
             else{notice="The box is still locked.";noticeUntil=ofGetElapsedTimef()+3;
-                if(++lockAttempts==2)say({{"tonton","Check the small number windows.\nIf they look right, check the photo."}});}
+                if(++lockAttempts==2)say(story::tryPasswordAgain());}
         }
     }else{
         if(delivered){if(nextButton.inside(p)){screen=Screen::Letter;letterOpened=false;letterAt=ofGetElapsedTimef();}return;}
@@ -656,9 +656,12 @@ void ofApp::runQA(){
         if(cue==story::Cue::Doorbell){capture("qa-doorbell.png");checkQA(bool(bellsPlayed==1&&doorbell.isLoaded()),__LINE__);}
         if(cue==story::Cue::ReturnPhoto){capture("qa-handover.png");checkQA(bool(giftReturned&&giftPhoto.isAllocated()&&!returnedPhoto.empty()&&cv::norm(returnedPhoto,repair.image(),cv::NORM_INF)==0&&cv::countNonZero(repair.mask)<int(repair.mask.total())),__LINE__);}
         if(cue==story::Cue::LiaLeaves)capture("qa-goodbye.png");
+        if(outro&&speechIndex>0&&dialogue[speechIndex-1].cue==story::Cue::ReturnPhoto)capture("qa-lia-response.png");
+        if(!intro&&!outro&&chapter==1&&dialogue[speechIndex].words.find("password from the photo")!=std::string::npos)capture("qa-photo-to-box.png");
+        if(intro&&dialogue[speechIndex].words.find("inside this box")!=std::string::npos)capture("qa-lia-request.png");
         if(!intro&&!outro&&chapter==2&&!delivered&&!envelopeOpened){checkQA(afterDialogue==Screen::Envelope,__LINE__);capture("qa-open-box.png");}
         if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Click a map house")!=std::string::npos&&!delivered)capture("qa-photo-guide.png");
-        if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Hold your hand")!=std::string::npos&&!delivered)capture("qa-camera-guide.png");
+        if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Show your hand")!=std::string::npos&&!delivered)capture("qa-camera-guide.png");
         if(delivered&&!outro&&speechIndex==0)capture("qa-map-success.png");
         if(delivered&&!outro&&speechIndex==2)capture("qa-turn-guide.png");
         if(dialogue[speechIndex].focus!=story::Focus::None){

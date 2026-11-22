@@ -20,11 +20,14 @@ inline std::vector<Speech> opening(){return {
     {"You","This is my little archive.\ntonton is my helper and my friend.",0,Cue::None,true},
     {"You","Someone is at the door.",0,Cue::Doorbell,true},
     {"tonton","Welcome to Mirror Archive!\nHow can we help?",1},
-    {"Lia","I'm Lia.\nThese belonged to my grandma Tang.",0,Cue::ShowKeepsakes},
-    {"You","Please, take your time.\nTell me about her."},
-    {"Lia","Grandma died last month.\nI miss her.",1},
-    {"Lia","She said the password was her first\nhome's address, but I've never been there."},
-    {"You","I'll take good care of them.\nLet's find that house number."},
+    {"Lia","I'm Lia.\nI brought my grandma Tang's box and photo.",0,Cue::ShowKeepsakes},
+    {"You","Take your time.\nWhat would you like us to help with?"},
+    {"Lia","Grandma died last month.\nI miss her so much.",1},
+    {"Lia","I want to know what's inside this box.\nI haven't been able to open it.",1},
+    {"You","Did she ever mention the password?"},
+    {"Lia","She said it was her first house number,\nbut I've never seen that house."},
+    {"You","Maybe the number is in this old photo.\nLet's take a closer look."},
+    {"tonton","The house number has faded.\nLet's restore the photo first.",1,Cue::None,false,Focus::Ready},
     {"tonton","Let's start with Clean.\nDrag over the photo to remove dust.",1,Cue::None,false,Focus::Clean},
     {"tonton","Use Contrast to bring back faded ink.",0,Cue::None,false,Focus::Contrast},
     {"tonton","Use Detail to make small edges clearer.",0,Cue::None,false,Focus::Detail},
@@ -36,28 +39,32 @@ inline std::vector<Speech> opening(){return {
 
 inline std::vector<Speech> foundNumber(){return {
     {"tonton","Nice work!",3},
+    {"tonton","Now let's use the password from the photo\nto open the box."},
     {"tonton","Write one number in each box."},
-    {"tonton","Check the small windows before\npressing Open."},
-    {"tonton","Let's try your number!",1}
+    {"tonton","Check the numbers above your writing\nbefore pressing Open."},
+    {"tonton","Let's see if it opens!",1}
 };}
 
 inline std::vector<Speech> foundEnvelope(){return {
     {"tonton","It opened! You did it!",3},
     {"tonton","There's an envelope inside.",2},
-    {"tonton","Let's open it!",1}
+    {"tonton","Let's see what's inside!",1}
 };}
 inline std::vector<Speech> foundMap(){return {
     {"tonton","There's a map inside!",2},
     {"tonton","It says, 'For my sweetheart Tang.'\nThat's Lia's grandma!",1},
-    {"tonton","Click a map house to see it\nbeside your own photo."},
-    {"tonton","Use Photo if you want to keep repairing."},
-    {"tonton","Let's find her home!\nPress Start camera when you're ready.",1}
+    {"tonton","This looks like a little game.\nLet's guide the letter to her first home."},
+    {"You","The house in the old photo is our clue."},
+    {"tonton","Click a map house to compare it\nwith the house in your photo."},
+    {"tonton","Use Photo if you need a clearer look."},
+    {"tonton","Let's follow the map!\nPress Start camera when you're ready.",1}
 };}
 inline std::vector<Speech> cameraGuide(){return {
-    {"tonton","Hold your hand in the middle first."},
-    {"tonton","Move it to one side and wait\nfor the ring to fill."},
-    {"tonton","Bring it back to the middle\nbefore choosing another direction."},
-    {"tonton","Let's give it a try!",1}
+    {"tonton","Show your hand in the middle of the view."},
+    {"tonton","Move your hand to one side.\nHold it there until the ring fills."},
+    {"tonton","The letter follows the path and stops\nat the next corner or fork."},
+    {"tonton","Bring your hand back to the middle\nbefore choosing the next direction."},
+    {"tonton","Let's bring it home!",1}
 };}
 inline std::vector<Speech> reachedHome(){return {
     {"tonton","You brought it home!\nGreat work!",3},
@@ -65,18 +72,29 @@ inline std::vector<Speech> reachedHome(){return {
     {"tonton","Let's turn it over.\nClick the folded corner.",1}
 };}
 
+inline std::vector<Speech> wrongHouse(){return {
+    {"tonton","This house looks different from the photo.\nLet's look at them side by side."}
+};}
+inline std::vector<Speech> tryPasswordAgain(){return {
+    {"tonton","The numbers above show what I read.\nUse Clear if a number looks wrong."},
+    {"tonton","If they match your writing,\nlet's check the photo again."}
+};}
+
 inline std::vector<Speech> ending(bool peopleRestored=false){return {
+    {"You","Your grandma's mother left her a message\non the back of the map."},
     {"Lia","Grandma always left a light on for me.\nNow I know why.",1},
-    {"You","You do not have to stop missing her.\nYou can keep her love with you."},
+    {"Lia","I wish I could thank her one more time.",1},
+    {"You","I know you miss her.\nI hope this helps you feel close to her."},
     {"You","Here is the photo I worked on.\nTake it home with the letter.",0,Cue::ReturnPhoto},
     {"Lia",peopleRestored?"I can see them holding hands.\nGrandma held my hand like that, too.":"Thank you for taking care of her photo.\nI will keep it close.",2},
     {"Lia","I'll put them by my bed.\nI'll keep a light on, too.",2},
-    {"You","Take care, Lia.\nCome back any time."},
-    {"Lia","I will. Thank you, both of you.",2},
+    {"You","Take care, Lia.\nYou are always welcome here."},
+    {"Lia","Thank you, both of you.\nI will come back.",2},
     {"You","I watch Lia leave with her photo.\nThe room feels quiet again.",0,Cue::LiaLeaves,true},
-    {"tonton","We fixed more than a photo today.",3},
-    {"You","We helped her bring a little of\nhome back with her."},
-    {"tonton","Another light left on.",1},
+    {"tonton","I'm glad she came to us.",1},
+    {"You","Me too.\nI'm glad we could help."},
+    {"tonton","Shall we leave a light on tonight?",1},
+    {"You","Yes. Someone else may need our help\ntomorrow."},
     {"You","I put away my tools.\nIt is time to go home.",0,Cue::None,true}
 };}
 

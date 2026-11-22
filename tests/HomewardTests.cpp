@@ -86,25 +86,33 @@ int main(int argc,char** argv){try{
     check(arrival.size()==3&&arrival[1].words.find("back")!=std::string::npos,"Only arrival reveals the writing on the back");
     check(number[0].happy==3&&envelope[0].happy==3&&arrival[0].happy==3,"Each chapter ends with a happy encouragement");
     auto personal=story::ending(true),quiet=story::ending(false);
-    check(personal[3].words!=quiet[3].words&&personal[3].words.find("held my hand")!=std::string::npos,"Lia responds to the player's actual family repair");
+    auto findLine=[](const std::vector<story::Speech>& script,const std::string& phrase){for(size_t i=0;i<script.size();++i)if(script[i].words.find(phrase)!=std::string::npos)return int(i);return -1;};
+    check(findLine(personal,"held my hand")>=0&&findLine(quiet,"held my hand")==-1,"Lia responds to the player's actual family repair");
     auto opening=story::opening(),ending=story::ending();
     check(opening.front().speaker=="You"&&opening.front().narration,"The player introduces their archive without a speaker plate");
     check(!opening[5].narration&&opening[5].speaker=="You","Spoken player dialogue retains its nameplate");
-    check(ending[7].narration&&ending.back().narration,"Departure and closing thoughts are narration");
+
     int bell=-1,greeting=-1,handover=-1,leave=-1;
     for(size_t i=0;i<opening.size();++i){if(opening[i].cue==story::Cue::Doorbell)bell=i;if(opening[i].speaker=="tonton"&&greeting<0)greeting=i;}
     check(bell>=0&&bell<greeting,"Doorbell comes before the assistant's greeting");
     for(size_t i=0;i<ending.size();++i){if(ending[i].cue==story::Cue::ReturnPhoto)handover=i;if(ending[i].cue==story::Cue::LiaLeaves)leave=i;}
     check(handover>=0&&leave>handover,"Photo is returned before Lia leaves");
+    check(ending[leave].narration&&ending.back().narration,"Departure and closing thoughts are narration");
+    int request=findLine(opening,"inside this box"),password=findLine(opening,"mention the password"),tools=findLine(opening,"start with Clean");
+    check(findLine(opening,"miss her so much")>=0&&request>findLine(opening,"miss her so much")&&password>request&&tools>password,"Lia's grief and request explain the task before the tools");
+    int bridge=findLine(number,"password from the photo");
+    check(bridge>0&&bridge<findLine(number,"Write one number"),"The photo clue connects celebration to opening the box");
+    check(findLine(map,"old photo is our clue")>=0&&findLine(map,"old photo is our clue")<findLine(map,"Click a map house"),"The map goal and photo clue precede the controls");
+    check(findLine(map,"grandma's mother")==-1&&findLine(ending,"grandma's mother")>=0&&findLine(ending,"grandma's mother")<findLine(ending,"Now I know why"),"The mother's message is explained only after reading it, before Lia's response");
     bool playerAfter=false,helperAfter=false;
     for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}
     check(playerAfter&&helperAfter,"The player and helper share the final conversation");
-    auto camera=story::cameraGuide();
+    auto camera=story::cameraGuide(),wrongHouse=story::wrongHouse(),retry=story::tryPasswordAgain();
     check(story::dedication=="For my sweetheart Tang"&&story::letter.find("My dear Tang,")==0,"Map and letter use the requested affectionate wording");
     check(number[0].words.find("Write")==std::string::npos&&arrival[0].words.find("back")==std::string::npos,"Celebrations are separate from instructions and story reveals");
     std::set<story::Focus> highlights;for(auto speech:opening)if(speech.focus!=story::Focus::None)highlights.insert(speech.focus);
     check(highlights.size()==7,"Each photo tool or setting has its own spotlight, followed by an invitation");
-    for(auto script:{opening,ending,personal,number,envelope,map,arrival,camera})for(auto speech:script){
+    for(auto script:{opening,ending,personal,number,envelope,map,arrival,camera,wrongHouse,retry})for(auto speech:script){
         std::istringstream lines(speech.words);std::string line;int count=0;
         while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the native pixel font");}
         check(count<=2,"Each dialogue box is at most two short lines");
