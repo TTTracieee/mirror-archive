@@ -21,18 +21,24 @@ inline std::vector<Speech> opening(){return {
     {"Lia","She died last month. I miss her.\nI want to know what she kept inside.",1},
     {"Lia","The password is her first home's address.\nThat is what she told me.\nBut I have never been there."},
     {"You","I'll take good care of them.\nLet's find that house number."},
-    {"tonton","Brush with Clean, then try Contrast.\nLook for the house number.\nTry the box when you can read it.",1}
+    {"tonton","Clean removes dust. Contrast helps fading.\nDetail makes small edges clearer.\nDrag a brush over the house number.",1},
+    {"tonton","Size changes how wide your brush is.\nStrength changes how much the tool does.\nHold Original to compare. Then try the box."}
+};}
+
+inline std::vector<Speech> foundNumber(){return {
+    {"tonton","Nice work! Let's try your number.\nWrite one number in each box.\nCheck the small windows, then press Open.",3}
 };}
 
 inline std::vector<Speech> foundEnvelope(){return {
-    {"tonton","An envelope!\nLet's open it.",2}
+    {"tonton","It opened! You did it!\nThere's an envelope inside.\nLet's open it.",3}
 };}
 inline std::vector<Speech> foundMap(){return {
     {"tonton","There's a map inside!\nIt says, 'For little Tang.'\nThat's Lia's grandma!",2},
-    {"tonton","Open Photo and compare the houses.\nClick a house for a closer look.\nThen press Start camera."}
+    {"tonton","Click a map house to compare the pictures.\nUse Photo if you want to repair more.\nThen press Start camera."}
 };}
 inline std::vector<Speech> reachedHome(){return {
-    {"tonton","We made it! There's writing on the back.\nClick the folded corner. Let's see.",3}
+    {"tonton","You brought it home! Great work!\nWait... there's writing on the back.",3},
+    {"tonton","Click the folded corner.\nLet's see what it says.",1}
 };}
 
 inline std::vector<Speech> ending(bool peopleRestored=false){return {

@@ -139,7 +139,7 @@ void ofApp::finishChapter(){
     cameraTipPending=false;photoOpen=false;
     if(chapter==0){
         if(revisiting){chapter=returnChapter;revisiting=false;if(resumeCamera){resumeCamera=false;toggleCamera();}return;}
-        chapter=1;say({{"tonton","Write one number in each box.\nCheck the small windows, then press Open.",1}});
+        chapter=1;say(story::foundNumber());
     }else if(chapter==1){chapter=2;maze.reset();trail.clear();say(story::foundEnvelope(),Screen::Envelope);
     }else {delivered=true;stopCamera();say(story::reachedHome(),Screen::Letter);}
 
@@ -625,7 +625,7 @@ void ofApp::runQA(){
         if(cue==story::Cue::ReturnPhoto){capture("qa-handover.png");checkQA(bool(giftReturned&&giftPhoto.isAllocated()&&!returnedPhoto.empty()&&cv::norm(returnedPhoto,repair.image(),cv::NORM_INF)==0&&cv::countNonZero(repair.mask)<int(repair.mask.total())),__LINE__);}
         if(cue==story::Cue::LiaLeaves)capture("qa-goodbye.png");
         if(!intro&&!outro&&chapter==2&&!delivered&&!envelopeOpened){checkQA(afterDialogue==Screen::Envelope,__LINE__);capture("qa-open-box.png");}
-        if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Open Photo")!=std::string::npos&&!delivered)capture("qa-photo-guide.png");
+        if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Click a map house")!=std::string::npos&&!delivered)capture("qa-photo-guide.png");
         if(!intro&&!outro&&chapter==2&&dialogue[speechIndex].words.find("Hold your hand")!=std::string::npos&&!delivered)capture("qa-camera-guide.png");
         if(delivered&&!outro&&speechIndex==0)capture("qa-turn-guide.png");
         click({400,350});return;

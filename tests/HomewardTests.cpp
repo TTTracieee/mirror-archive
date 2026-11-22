@@ -70,17 +70,21 @@ int main(int argc,char** argv){try{
     BrushRepair faded,ordinary;faded.load(clue,stain);ordinary.load(clue);
     cv::Mat outside(clue.size(),CV_8U,cv::Scalar(255));outside(stain).setTo(0);cv::Mat outsideDifference;cv::absdiff(faded.damaged,ordinary.damaged,outsideDifference);
     check(cv::mean(outsideDifference,outside)==cv::Scalar(0,0,0,0),"Clue aging leaves the rest of the photograph unchanged");
+    cv::Mat wall(320,480,CV_8UC3,cv::Scalar(110,150,175));BrushRepair agedWall,plainWall;
+    agedWall.load(wall,stain);plainWall.load(wall);
+    check(cv::norm(agedWall.damaged,plainWall.damaged,cv::NORM_INF)==0,"Local fading preserves the wall's own color without a pasted tint");
     auto separation=[&](const cv::Mat& image){cv::Mat gray;cv::cvtColor(image,gray,cv::COLOR_BGR2GRAY);return cv::mean(gray,paperMask)[0]-cv::mean(gray,inkMask)[0];};
     double faint=separation(faded.image());
     for(auto tool:{Filter::Clean,Filter::Contrast,Filter::Detail})faded.stroke({200,80},{275,80},25,tool);
     double readable=separation(faded.image());std::cout<<"Doorplate ink contrast: "<<faint<<" -> "<<readable<<"\n";
     check(faint<14,"The unpainted doorplate starts with faint ink");
-    check(readable>25&&readable>faint*2.5,"Real filters recover readable contrast from the observation");
+    check(readable>50&&readable>faint*4,"Real filters recover readable contrast from the observation");
     check(cv::norm(faded.image()(cv::Rect(350,200,50,50)),faded.damaged(cv::Rect(350,200,50,50)),cv::NORM_INF)==0,"Clue repair stays inside the player's brush");
-    auto envelope=story::foundEnvelope(),map=story::foundMap(),arrival=story::reachedHome();
+    auto number=story::foundNumber(),envelope=story::foundEnvelope(),map=story::foundMap(),arrival=story::reachedHome();
     check(envelope.size()==1&&envelope[0].words.find("map")==std::string::npos,"The box reveals only an envelope");
     check(map.front().words.find("map inside")!=std::string::npos,"Opening the envelope reveals its map");
-    check(arrival.size()==1&&arrival[0].words.find("back")!=std::string::npos,"Only arrival reveals the writing on the back");
+    check(arrival.size()==2&&arrival[0].words.find("back")!=std::string::npos,"Only arrival reveals the writing on the back");
+    check(number[0].happy==3&&envelope[0].happy==3&&arrival[0].happy==3,"Each chapter ends with a happy encouragement");
     auto personal=story::ending(true),quiet=story::ending(false);
     check(personal[3].words!=quiet[3].words&&personal[3].words.find("held my hand")!=std::string::npos,"Lia responds to the player's actual family repair");
     auto opening=story::opening(),ending=story::ending();
@@ -95,7 +99,7 @@ int main(int argc,char** argv){try{
     bool playerAfter=false,helperAfter=false;
     for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}
     check(playerAfter&&helperAfter,"The player and helper share the final conversation");
-    for(auto script:{opening,ending,personal,envelope,map,arrival})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
+    for(auto script:{opening,ending,personal,number,envelope,map,arrival})for(auto speech:script){std::istringstream lines(speech.words);std::string line;int count=0;while(std::getline(lines,line)){++count;check(line.size()<=44,"NPC line fits the large native pixel font");}check(count<=3,"NPC speech stays short");}
 
     Maze maze;auto route=maze.solution();
     std::cout<<"Shortest maze route: "<<route.size()<<" gestures\n";

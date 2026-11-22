@@ -42,22 +42,34 @@ public:
         int low=percentile(.02f),high=percentile(.98f);
         if(high-low<8)return observed.clone();
         double gain=std::min(3.,235./(high-low));cv::Mat result;
-        observed.convertTo(result,CV_8U,gain,10-low*gain);
+        // Raise weak local detail around its own mean, keeping the wall's illumination.
+        cv::Mat luminance,mean,squareMean,detailSource=observed.clone();gray.convertTo(luminance,CV_32F);
+        cv::GaussianBlur(luminance,mean,{0,0},3.);
+        cv::GaussianBlur(luminance.mul(luminance),squareMean,{0,0},3.);
+        for(int y=0;y<observed.rows;++y)for(int x=0;x<observed.cols;++x){
+            float average=mean.at<float>(y,x);
+            float deviation=std::sqrt(std::max(0.f,squareMean.at<float>(y,x)-average*average));
+            float localGain=deviation<1?1:std::clamp(22.f/(deviation+1),1.f,6.f);
+            float delta=(localGain-1)*(luminance.at<float>(y,x)-average);
+            auto& pixel=detailSource.at<cv::Vec3b>(y,x);
+            for(int c=0;c<3;++c)pixel[c]=cv::saturate_cast<uchar>(pixel[c]+delta);
+        }
+        detailSource.convertTo(result,CV_8U,gain,10-low*gain);
         // Local luminance equalization recovers uneven fading without knowing where the clue is.
         cv::Mat lab,local;cv::cvtColor(result,lab,cv::COLOR_BGR2Lab);std::vector<cv::Mat> channels;cv::split(lab,channels);
-        cv::createCLAHE(6.,{16,12})->apply(channels[0],channels[0]);cv::merge(channels,lab);cv::cvtColor(lab,local,cv::COLOR_Lab2BGR);
-        cv::addWeighted(result,.45,local,.55,0,result);return result;
+        cv::createCLAHE(3.,{16,12})->apply(channels[0],channels[0]);cv::merge(channels,lab);cv::cvtColor(lab,local,cv::COLOR_Lab2BGR);
+        cv::addWeighted(result,.65,local,.35,0,result);return result;
     }
     void load(const cv::Mat& source,cv::Rect fadedArea={}){
         cv::Mat faded;cv::GaussianBlur(source,faded,{3,3},.55);faded.convertTo(damaged,CV_8U,.62,43);
         // A smooth, local age stain compresses the ink range but never erases the observation.
+        cv::Mat localPaper;cv::GaussianBlur(damaged,localPaper,{0,0},5.);
         auto area=fadedArea&cv::Rect(0,0,damaged.cols,damaged.rows);
         for(int y=area.y;y<area.br().y;++y)for(int x=area.x;x<area.br().x;++x){
             float edge=std::min({x-area.x+1,area.br().x-x,y-area.y+1,area.br().y-y})/10.f;
             float weight=std::min(1.f,edge);float amount=.91f*weight*weight*(3-2*weight);
-            float stain=2*std::sin(x*.16f)+2*std::cos(y*.21f);
             auto& pixel=damaged.at<cv::Vec3b>(y,x);
-            const cv::Vec3f paper(147+stain,169+stain,181+stain);
+            const auto paper=localPaper.at<cv::Vec3b>(y,x);
             for(int c=0;c<3;++c)pixel[c]=cv::saturate_cast<uchar>(pixel[c]*(1-amount)+paper[c]*amount);
         }
         cv::RNG random(208);
