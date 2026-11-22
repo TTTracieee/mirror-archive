@@ -48,15 +48,14 @@ inline std::vector<Speech> foundNumber(){return {
 inline std::vector<Speech> foundEnvelope(){return {
     {"tonton","It opened! You did it!",3},
     {"tonton","There's an envelope inside.",2},
-    {"tonton","Let's see what's inside!",1}
+    {"tonton","Let's see what's inside!\nClick the envelope to open it.",1}
 };}
 inline std::vector<Speech> foundMap(){return {
     {"tonton","There's a map inside!",2},
     {"tonton","It says, 'For my sweetheart Tang.'\nThat's Lia's grandma!",1},
     {"tonton","This looks like a little game.\nLet's guide the letter to her first home."},
     {"You","The house in the old photo is our clue."},
-    {"tonton","Click a map house to compare it\nwith the house in your photo."},
-    {"tonton","Use Photo if you need a clearer look."},
+    {"tonton","Click Photo to see your restored picture.\nLook for the same house on the map."},
     {"tonton","Let's follow the map!\nPress Start camera when you're ready.",1}
 };}
 inline std::vector<Speech> cameraGuide(){return {
@@ -73,7 +72,7 @@ inline std::vector<Speech> reachedHome(){return {
 };}
 
 inline std::vector<Speech> wrongHouse(){return {
-    {"tonton","This house looks different from the photo.\nLet's look at them side by side."}
+    {"tonton","This house looks different from the photo.\nLet's check Photo again."}
 };}
 inline std::vector<Speech> tryPasswordAgain(){return {
     {"tonton","The numbers above show what I read.\nUse Clear if a number looks wrong."},

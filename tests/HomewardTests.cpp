@@ -102,7 +102,9 @@ int main(int argc,char** argv){try{
     check(findLine(opening,"miss her so much")>=0&&request>findLine(opening,"miss her so much")&&password>request&&tools>password,"Lia's grief and request explain the task before the tools");
     int bridge=findLine(number,"password from the photo");
     check(bridge>0&&bridge<findLine(number,"Write one number"),"The photo clue connects celebration to opening the box");
-    check(findLine(map,"old photo is our clue")>=0&&findLine(map,"old photo is our clue")<findLine(map,"Click a map house"),"The map goal and photo clue precede the controls");
+    check(findLine(map,"old photo is our clue")>=0&&findLine(map,"old photo is our clue")<findLine(map,"Click Photo"),"The map goal and photo clue precede the controls");
+    check(findLine(map,"Click a map house")==-1&&findLine(map,"restored picture")>=0,"The map guide uses the finished photo, not house inspection");
+    check(findLine(envelope,"Click the envelope")>=0,"The envelope guide points to the prop itself");
     check(findLine(map,"grandma's mother")==-1&&findLine(ending,"grandma's mother")>=0&&findLine(ending,"grandma's mother")<findLine(ending,"Now I know why"),"The mother's message is explained only after reading it, before Lia's response");
     bool playerAfter=false,helperAfter=false;
     for(size_t i=leave+1;i<ending.size();++i){playerAfter|=ending[i].speaker=="You";helperAfter|=ending[i].speaker=="tonton";}

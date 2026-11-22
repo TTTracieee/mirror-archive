@@ -30,16 +30,15 @@ private:
     int chapter=0,drawingCell=-1,brushRadius=19,filterIndex=0,lockAttempts=0;
     bool cameraTaught=false,cameraTipPending=false,envelopeOpened=false;
     bool copySaved=false;
-    bool intro=false,outro=false,revisiting=false,wrongHomeHint=false;
+    bool intro=false,outro=false,wrongHomeHint=false;
     bool letterOpened=false,giftReturned=false,soundOn=true;
     int infoPage=0,bellsPlayed=0;
     float bellAt=-100,returnPhotoAt=-1,liaLeftAt=-1;
-    int returnChapter=1;
+    float envelopeHover=0;
     std::array<float,3> inkDue{0,0,0};
     std::array<homeward::DigitGuess,3> guesses;
     bool brushing=false,photoOpen=false,cameraPending=false,delivered=false;
     bool adjustingStrength=false,comparing=false,resumeCamera=false,qaCluesChecked=false;
-    int inspectedHouse=-1;
     bool qaMode=false,qaPassed=true,qaCamera=false,qaCameraChecked=false,qaCameraResumed=false;
     int cameraFrames=0;
     float qaCameraAt=-1,qaFirstFrameAt=-1;
@@ -75,6 +74,7 @@ private:
     void beginStory();
     void openEnvelope();
     void drawSealedEnvelope();
+    ofRectangle sealedEnvelopeBounds() const;
     bool saveCopy(const std::string& path);
     void drawMagnifier(glm::vec2 point);
     void say(std::vector<Speech> lines,Screen next=Screen::Play);
@@ -84,8 +84,9 @@ private:
     void beginEnding();
     void finishChapter();
     void refreshPhoto();
-    void revisitPhoto(int from);
-    void drawHouseDetail();
+    void showPhoto();
+    void closePhoto();
+    void drawPhotoPreview();
     void refreshInk(int cell);
     void toggleCamera();
     void stopCamera();
