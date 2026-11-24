@@ -16,9 +16,13 @@ Take a seat at your desk. Look a little closer. Where will the first clue lead?
 
 Brush away dust, bring back faded details, and look for a hidden clue. Choose your tools and brush size, adjust their strength, and compare your work with the old photo. You decide when it is ready.
 
+![Restore an old photo with brushes and filters](docs/photo-workshop.png)
+
 ### Open the box
 
 Put your discovery to the test. Write the password with your mouse and try the lock. What has Lia's grandmother kept all this time?
+
+![Write your discovery into the keepsake box's lock](docs/handwriting-lock.png)
 
 ### Guide the letter
 
@@ -32,6 +36,10 @@ Explore an illustrated map and look to your restored photo for clues. Use your w
 - tonton by your side, with short tips and a happy cheer when you succeed.
 - Your own restored photo stays with you throughout the story. Save a copy to keep.
 - Mouse painting, handwritten input, and camera controls. Arrow keys also work on the map.
+
+| A visitor with a story | A little help from tonton |
+| --- | --- |
+| ![Lia brings her grandmother's keepsakes](docs/intro.png) | ![tonton introduces the photo tools](docs/tool-guide.png) |
 
 Your camera stays on your computer. Video is never saved or uploaded.
 
